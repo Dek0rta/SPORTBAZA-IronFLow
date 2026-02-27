@@ -7,7 +7,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.keyboards.callbacks import TournamentCb, MainMenuCb, ParticipantCb
-from bot.models.models import Tournament, WeightCategory
+from bot.models.models import Tournament, WeightCategory, AgeCategory
 
 
 def tournament_list_kb(tournaments: List[Tournament]) -> InlineKeyboardMarkup:
@@ -21,6 +21,28 @@ def tournament_list_kb(tournaments: List[Tournament]) -> InlineKeyboardMarkup:
             )
         )
     builder.row(InlineKeyboardButton(text="🔙 Назад", callback_data=MainMenuCb(action="main").pack()))
+    return builder.as_markup()
+
+
+def age_category_kb() -> InlineKeyboardMarkup:
+    """Age category selection buttons."""
+    builder = InlineKeyboardBuilder()
+    # Row by row: 2 buttons each for better readability
+    rows = [
+        [AgeCategory.SUB_JUNIOR, AgeCategory.JUNIOR],
+        [AgeCategory.OPEN],
+        [AgeCategory.MASTERS1, AgeCategory.MASTERS2],
+        [AgeCategory.MASTERS3, AgeCategory.MASTERS4],
+    ]
+    for row in rows:
+        builder.row(*[
+            InlineKeyboardButton(
+                text=AgeCategory.LABELS[key],
+                callback_data=f"reg_age:{key}",
+            )
+            for key in row
+        ])
+    builder.row(InlineKeyboardButton(text="❌ Отмена", callback_data=MainMenuCb(action="main").pack()))
     return builder.as_markup()
 
 

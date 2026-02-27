@@ -66,6 +66,12 @@ def tournament_detail_admin_kb(t: Tournament) -> InlineKeyboardMarkup:
                 callback_data=ParticipantCb(action="list", tid=t.id).pack(),
             )
         )
+        builder.row(
+            InlineKeyboardButton(
+                text="📢 Объявление",
+                callback_data=TournamentCb(action="announce", tid=t.id).pack(),
+            )
+        )
 
     elif t.status == TournamentStatus.ACTIVE:
         builder.row(
@@ -86,6 +92,12 @@ def tournament_detail_admin_kb(t: Tournament) -> InlineKeyboardMarkup:
                 callback_data=ParticipantCb(action="list", tid=t.id).pack(),
             )
         )
+        builder.row(
+            InlineKeyboardButton(
+                text="📢 Объявление",
+                callback_data=TournamentCb(action="announce", tid=t.id).pack(),
+            )
+        )
 
     elif t.status == TournamentStatus.FINISHED:
         builder.row(
@@ -96,6 +108,22 @@ def tournament_detail_admin_kb(t: Tournament) -> InlineKeyboardMarkup:
         )
 
     builder.row(InlineKeyboardButton(text="🔙 К списку", callback_data=TournamentCb(action="list").pack()))
+    return builder.as_markup()
+
+
+def description_input_kb() -> InlineKeyboardMarkup:
+    """Keyboard shown while admin enters tournament description — allows skipping."""
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="➡️ Пропустить", callback_data="trn_desc_skip"))
+    builder.row(InlineKeyboardButton(text="❌ Отмена", callback_data=TournamentCb(action="list").pack()))
+    return builder.as_markup()
+
+
+def announce_cancel_kb(tid: int) -> InlineKeyboardMarkup:
+    """Cancel button for the announcement text-input step."""
+    builder = InlineKeyboardBuilder()
+    cb = TournamentCb(action="view", tid=tid).pack() if tid else TournamentCb(action="list").pack()
+    builder.row(InlineKeyboardButton(text="❌ Отмена", callback_data=cb))
     return builder.as_markup()
 
 

@@ -175,6 +175,7 @@ async def register_participant(
     full_name: str,
     bodyweight: float,
     gender: str,
+    age_category: Optional[str] = None,
 ) -> Tuple[Optional[Participant], str]:
     """
     Register athlete for a tournament.
@@ -201,6 +202,7 @@ async def register_participant(
         full_name=full_name,
         bodyweight=bodyweight,
         gender=gender,
+        age_category=age_category,
         category_id=category.id if category else None,
     )
     session.add(p)

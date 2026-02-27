@@ -75,6 +75,26 @@ class ParticipantStatus:
     WITHDRAWN  = "withdrawn"
 
 
+class AgeCategory:
+    SUB_JUNIOR = "sub_junior"  # до 18 лет
+    JUNIOR     = "junior"      # 18–23 лет
+    OPEN       = "open"        # открытая (без ограничений)
+    MASTERS1   = "masters1"    # 40–49 лет
+    MASTERS2   = "masters2"    # 50–59 лет
+    MASTERS3   = "masters3"    # 60–69 лет
+    MASTERS4   = "masters4"    # 70+ лет
+
+    LABELS = {
+        "sub_junior": "Юниоры (до 18 лет)",
+        "junior":     "Молодёжь (18–23 лет)",
+        "open":       "Открытая",
+        "masters1":   "Мастера 1 (40–49 лет)",
+        "masters2":   "Мастера 2 (50–59 лет)",
+        "masters3":   "Мастера 3 (60–69 лет)",
+        "masters4":   "Мастера 4 (70+ лет)",
+    }
+
+
 class AttemptResult:
     PENDING = None
     GOOD    = "good"
@@ -179,6 +199,7 @@ class Participant(Base):
     full_name:     Mapped[str]           = mapped_column(String(255))
     bodyweight:    Mapped[float]         = mapped_column(Float)
     gender:        Mapped[str]           = mapped_column(String(5))      # "M" | "F"
+    age_category:  Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # AgeCategory.*
     category_id:   Mapped[Optional[int]] = mapped_column(ForeignKey("weight_categories.id"), nullable=True)
     status:        Mapped[str]           = mapped_column(String(30), default=ParticipantStatus.REGISTERED)
     lot_number:    Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
