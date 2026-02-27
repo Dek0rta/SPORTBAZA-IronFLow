@@ -129,6 +129,21 @@ async def set_tournament_status(
 
 
 async def delete_tournament(session: AsyncSession, tournament_id: int) -> None:
+    # Bulk ORM delete bypasses cascade — delete manually in FK order.
+    participant_ids_result = await session.execute(
+        select(Participant.id).where(Participant.tournament_id == tournament_id)
+    )
+    participant_ids = list(participant_ids_result.scalars())
+    if participant_ids:
+        await session.execute(
+            delete(Attempt).where(Attempt.participant_id.in_(participant_ids))
+        )
+    await session.execute(
+        delete(Participant).where(Participant.tournament_id == tournament_id)
+    )
+    await session.execute(
+        delete(WeightCategory).where(WeightCategory.tournament_id == tournament_id)
+    )
     await session.execute(
         delete(Tournament).where(Tournament.id == tournament_id)
     )
