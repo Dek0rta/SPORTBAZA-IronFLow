@@ -10,7 +10,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.keyboards import (
-    AdminPanelCb, TournamentCb, CategoryCb,
+    AdminPanelCb, TournamentCb,
     tournament_list_admin_kb, tournament_detail_admin_kb,
     confirm_action_kb, category_setup_kb,
     admin_main_menu, PREDEFINED_CATEGORIES,
@@ -212,7 +212,7 @@ async def cq_category_toggle(
     )
 
 
-@router.callback_query(CategoryCb.filter(F.action == "confirm"))
+@router.callback_query(F.data == "categories_confirm")
 async def cq_categories_confirmed(
     callback: CallbackQuery,
     session: AsyncSession,

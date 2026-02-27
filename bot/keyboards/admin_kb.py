@@ -162,7 +162,7 @@ def category_setup_kb(
     builder.row(
         InlineKeyboardButton(
             text="✅ Подтвердить категории",
-            callback_data=CategoryCb(action="confirm", tid=tid).pack(),
+            callback_data="categories_confirm",   # plain string — avoids empty-field parsing issues
         )
     )
     builder.row(InlineKeyboardButton(text="❌ Отмена", callback_data=TournamentCb(action="list").pack()))
