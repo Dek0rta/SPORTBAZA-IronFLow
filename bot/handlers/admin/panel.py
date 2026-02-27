@@ -14,7 +14,7 @@ from bot.keyboards import (
     scoring_participant_list_kb,
 )
 from bot.middlewares import IsAdmin
-from bot.models.models import ParticipantStatus
+from bot.models.models import ParticipantStatus, AgeCategory
 from bot.services import (
     list_tournaments, list_participants, get_participant, update_participant_status,
 )
@@ -112,12 +112,14 @@ async def cq_participant_detail_admin(
         return
 
     cat     = p.category.display_name if p.category else "не назначена"
+    age_cat = AgeCategory.LABELS.get(p.age_category, "—") if p.age_category else "—"
     lot_str = f"#{p.lot_number}" if p.lot_number else "—"
     text = (
         f"👤 *{p.full_name}*\n\n"
         f"🏆 Турнир: {p.tournament.name}\n"
         f"⚖️ Вес: `{p.bodyweight:g} кг`\n"
-        f"📂 Категория: {cat}\n"
+        f"📂 Весовая категория: {cat}\n"
+        f"🏅 Возрастная категория: {age_cat}\n"
         f"🎲 Жребий: `{lot_str}`\n"
         f"📌 Статус: {p.status_emoji} {p.status}\n"
     )
