@@ -36,9 +36,22 @@ logger = logging.getLogger(__name__)
 
 async def create_tables() -> None:
     """Create all database tables on startup."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database tables ready.")
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables ready.")
+    except Exception as e:
+        logger.critical(
+            "❌ Cannot connect to database!\n"
+            "   URL: %s\n"
+            "   Error: %s\n\n"
+            "   → On Railway: add a PostgreSQL plugin (Add Service → Database → PostgreSQL)\n"
+            "   → Locally: start PostgreSQL or use SQLite "
+            "(DATABASE_URL=sqlite+aiosqlite:///./sportbaza.db)",
+            settings.DATABASE_URL.split("@")[-1],   # hide credentials in log
+            e,
+        )
+        sys.exit(1)
 
 
 def build_dispatcher() -> Dispatcher:
