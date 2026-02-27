@@ -22,7 +22,12 @@ async def cq_fallback(
     state: FSMContext,
     is_admin: bool = False,
 ) -> None:
-    await callback.answer("⚠️ Кнопка устарела. Начните заново.", show_alert=True)
+    # Answer the callback first so Telegram never shows its own "Доступ запрещён" error.
+    try:
+        await callback.answer("⚠️ Кнопка устарела. Начните заново.", show_alert=True)
+    except Exception:
+        pass
+
     await state.clear()
     try:
         kb = admin_main_menu() if is_admin else athlete_main_menu()

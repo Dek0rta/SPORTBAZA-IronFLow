@@ -11,10 +11,12 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import ErrorEvent
 
 from bot.config import settings
 from bot.middlewares import DatabaseMiddleware, AdminMiddleware
 from bot.models.base import engine, Base
+from sqlalchemy import text
 
 # ── Handlers ──────────────────────────────────────────────────────────────────
 from bot.handlers.common import router as common_router
@@ -41,6 +43,15 @@ async def create_tables() -> None:
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        # Incremental migrations for existing databases (idempotent — errors are swallowed)
+        async with engine.begin() as conn:
+            for sql in [
+                "ALTER TABLE participants ADD COLUMN age_category VARCHAR(20)",
+            ]:
+                try:
+                    await conn.execute(text(sql))
+                except Exception:
+                    pass  # Column already exists (new DB created via create_all)
         logger.info("Database tables ready.")
     except Exception as e:
         logger.critical(
@@ -58,6 +69,19 @@ async def create_tables() -> None:
 
 def build_dispatcher() -> Dispatcher:
     dp = Dispatcher(storage=MemoryStorage())
+
+    # ── Global error handler — ensures callbacks are always answered ──────────
+    @dp.errors()
+    async def handle_error(event: ErrorEvent) -> None:
+        logger.exception("Unhandled error: %s", event.exception)
+        update = event.update
+        if update.callback_query:
+            try:
+                await update.callback_query.answer(
+                    "⚠️ Произошла ошибка. Попробуйте снова.", show_alert=True
+                )
+            except Exception:
+                pass
 
     # ── Global middlewares ────────────────────────────────────────────────────
     dp.update.middleware(DatabaseMiddleware())
