@@ -64,6 +64,7 @@ async def _send_admin_welcome(message: Message) -> None:
 
 @router.callback_query(MainMenuCb.filter(F.action == "main"))
 async def cq_main_menu(callback: CallbackQuery, is_admin: bool, state: FSMContext) -> None:
+    await callback.answer()
     await state.clear()
     if is_admin:
         text = "⚡ *Панель администратора*\n\nВыберите раздел:"
@@ -72,8 +73,10 @@ async def cq_main_menu(callback: CallbackQuery, is_admin: bool, state: FSMContex
         text = "🏋️ *SPORTBAZA* — Панель атлета\n\nВыберите действие:"
         kb   = athlete_main_menu()
 
-    await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=kb)
-    await callback.answer()
+    try:
+        await callback.message.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=kb)
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data == "noop")
