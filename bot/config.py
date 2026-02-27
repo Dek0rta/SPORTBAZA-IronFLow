@@ -26,6 +26,18 @@ class Settings(BaseSettings):
     # ── Database ──────────────────────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/sportbaza"
 
+    @property
+    def async_database_url(self) -> str:
+        """
+        Railway injects DATABASE_URL as 'postgresql://...'
+        SQLAlchemy async requires 'postgresql+asyncpg://...'
+        This property fixes the prefix automatically.
+        """
+        url = self.DATABASE_URL
+        if url.startswith("postgresql://") or url.startswith("postgres://"):
+            return url.replace("://", "+asyncpg://", 1)
+        return url
+
     # ── Google Sheets (optional) ──────────────────────────────────────────────
     GOOGLE_CREDENTIALS_JSON: Optional[str] = None
     GOOGLE_SPREADSHEET_ID: Optional[str] = None
