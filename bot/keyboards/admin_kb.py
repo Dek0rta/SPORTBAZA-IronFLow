@@ -72,6 +72,12 @@ def tournament_detail_admin_kb(t: Tournament) -> InlineKeyboardMarkup:
                 callback_data=TournamentCb(action="announce", tid=t.id).pack(),
             )
         )
+        builder.row(
+            InlineKeyboardButton(
+                text="🗑️ Удалить",
+                callback_data=TournamentCb(action="delete_confirm", tid=t.id).pack(),
+            )
+        )
 
     elif t.status == TournamentStatus.ACTIVE:
         builder.row(
@@ -98,12 +104,24 @@ def tournament_detail_admin_kb(t: Tournament) -> InlineKeyboardMarkup:
                 callback_data=TournamentCb(action="announce", tid=t.id).pack(),
             )
         )
+        builder.row(
+            InlineKeyboardButton(
+                text="🗑️ Удалить",
+                callback_data=TournamentCb(action="delete_confirm", tid=t.id).pack(),
+            )
+        )
 
     elif t.status == TournamentStatus.FINISHED:
         builder.row(
             InlineKeyboardButton(
                 text="📤 Экспорт в Google Sheets",
                 callback_data=TournamentCb(action="export", tid=t.id).pack(),
+            )
+        )
+        builder.row(
+            InlineKeyboardButton(
+                text="🗑️ Удалить",
+                callback_data=TournamentCb(action="delete_confirm", tid=t.id).pack(),
             )
         )
 
