@@ -20,6 +20,7 @@ from bot.models.base import engine, Base
 from bot.handlers.common import router as common_router
 from bot.handlers.registration import router as registration_router
 from bot.handlers.athlete import router as athlete_router
+from bot.handlers.athlete_weights import router as athlete_weights_router
 from bot.handlers.admin.panel import router as admin_panel_router
 from bot.handlers.admin.tournament import router as admin_tournament_router
 from bot.handlers.admin.scoring import router as admin_scoring_router
@@ -66,6 +67,7 @@ def build_dispatcher() -> Dispatcher:
     dp.include_router(common_router)
     dp.include_router(registration_router)
     dp.include_router(athlete_router)
+    dp.include_router(athlete_weights_router)
 
     # Admin routers
     dp.include_router(admin_panel_router)

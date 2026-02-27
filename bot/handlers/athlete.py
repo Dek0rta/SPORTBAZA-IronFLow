@@ -69,10 +69,20 @@ async def cq_participant_profile(
         TournamentStatus.DRAFT,
     ) and p.status != ParticipantStatus.WITHDRAWN
 
+    # Athlete can declare weights during registration OR active phase (unjudged attempts)
+    can_declare = p.tournament.status in (
+        TournamentStatus.REGISTRATION,
+        TournamentStatus.ACTIVE,
+    ) and p.status != ParticipantStatus.WITHDRAWN
+
     await callback.message.edit_text(
         text,
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=participant_profile_kb(p.id, can_withdraw=can_withdraw),
+        reply_markup=participant_profile_kb(
+            p.id,
+            can_withdraw=can_withdraw,
+            can_declare_weights=can_declare,
+        ),
     )
     await callback.answer()
 
