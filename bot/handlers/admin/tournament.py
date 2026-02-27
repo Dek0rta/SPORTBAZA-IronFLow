@@ -174,11 +174,24 @@ async def cq_tournament_type(
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("cat_toggle:"), AdminTournamentStates.choose_categories)
+@router.callback_query(F.data.startswith("cat_toggle:"))
 async def cq_category_toggle(
     callback: CallbackQuery,
     state: FSMContext,
 ) -> None:
+    # Answer immediately — prevents infinite spinner regardless of what happens next
+    await callback.answer()
+
+    # Guard: state may have been lost after bot restart (MemoryStorage is volatile)
+    current_state = await state.get_state()
+    if current_state != AdminTournamentStates.choose_categories.state:
+        await callback.message.edit_text(
+            "⚠️ *Сессия устарела.*\n\nНачните создание турнира заново.",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=admin_main_menu(),
+        )
+        return
+
     # Format: cat_toggle:{tid}:{gender}:{cat_name}
     parts  = callback.data.split(":")
     gender = parts[2]
@@ -194,19 +207,30 @@ async def cq_category_toggle(
         selected.add(key)
 
     await state.update_data(selected_categories=list(selected))
-
     await callback.message.edit_reply_markup(
         reply_markup=category_setup_kb(0, selected)
     )
-    await callback.answer()
 
 
-@router.callback_query(CategoryCb.filter(F.action == "confirm"), AdminTournamentStates.choose_categories)
+@router.callback_query(CategoryCb.filter(F.action == "confirm"))
 async def cq_categories_confirmed(
     callback: CallbackQuery,
     session: AsyncSession,
     state: FSMContext,
 ) -> None:
+    # Answer FIRST — Telegram clears the spinner immediately, no infinite loading
+    await callback.answer()
+
+    # Guard: state may have been lost after bot restart
+    current_state = await state.get_state()
+    if current_state != AdminTournamentStates.choose_categories.state:
+        await callback.message.edit_text(
+            "⚠️ *Сессия устарела.*\n\nНачните создание турнира заново.",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=admin_main_menu(),
+        )
+        return
+
     data     = await state.get_data()
     selected = set(data.get("selected_categories", []))
 
@@ -245,7 +269,6 @@ async def cq_categories_confirmed(
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=tournament_detail_admin_kb(t),
     )
-    await callback.answer("✅ Турнир создан!")
 
 
 # ── Status transitions ────────────────────────────────────────────────────────

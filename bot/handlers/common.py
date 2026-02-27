@@ -79,3 +79,24 @@ async def cq_main_menu(callback: CallbackQuery, is_admin: bool, state: FSMContex
 @router.callback_query(F.data == "noop")
 async def cq_noop(callback: CallbackQuery) -> None:
     await callback.answer()
+
+
+# ── Global fallback — MUST be last in the router ──────────────────────────────
+@router.callback_query()
+async def cq_fallback(callback: CallbackQuery, state: FSMContext, is_admin: bool = False) -> None:
+    """
+    Catches any callback not handled by other routers.
+    Prevents infinite loading spinners caused by:
+      - Stale keyboards after bot restart (MemoryStorage is volatile)
+      - Unimplemented button paths
+    """
+    await state.clear()
+    await callback.answer("⚠️ Кнопка устарела. Начните заново.", show_alert=True)
+    try:
+        await callback.message.edit_text(
+            "🔄 *Сессия сброшена.*\n\nВернитесь в главное меню:",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=admin_main_menu() if is_admin else athlete_main_menu(),  # type: ignore[arg-type]
+        )
+    except Exception:
+        pass
