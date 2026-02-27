@@ -39,9 +39,7 @@ class IsAdmin(BaseFilter):
     """Use on individual routers/handlers to restrict access to admins."""
 
     async def __call__(self, event: Message | CallbackQuery, is_admin: bool = False) -> bool:
-        if not is_admin:
-            if isinstance(event, Message):
-                await event.answer("⛔️ Доступ запрещён.")
-            elif isinstance(event, CallbackQuery):
-                await event.answer("⛔️ Доступ запрещён.", show_alert=True)
+        # Just return the flag — admin buttons are never shown to non-admins,
+        # so silently returning False is correct. Sending an error here causes
+        # false positives when the router filter fires during handler lookup.
         return is_admin

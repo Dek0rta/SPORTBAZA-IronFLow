@@ -3,11 +3,12 @@ from aiogram.fsm.state import State, StatesGroup
 
 class RegistrationStates(StatesGroup):
     """FSM for athlete self-registration flow."""
-    choose_tournament = State()
-    enter_full_name   = State()
-    enter_bodyweight  = State()
-    choose_gender     = State()
-    confirm           = State()
+    choose_tournament   = State()
+    enter_full_name     = State()
+    enter_bodyweight    = State()
+    choose_gender       = State()
+    choose_age_category = State()
+    confirm             = State()
 
 
 class AthleteWeightStates(StatesGroup):

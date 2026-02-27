@@ -97,6 +97,35 @@ async def notify_registration_confirmed(
         logger.warning("Could not notify athlete telegram_id=%d: %s", telegram_id, e)
 
 
+async def notify_announcement(
+    bot: Bot,
+    participants: list,
+    text: str,
+    tournament_name: str,
+) -> int:
+    """
+    Broadcast an admin announcement to all non-withdrawn participants.
+    Returns the number of successfully delivered messages.
+    """
+    message = (
+        f"📢 *Объявление от организаторов*\n\n"
+        f"🏆 {tournament_name}\n\n"
+        f"{text}"
+    )
+    count = 0
+    for p in participants:
+        try:
+            await bot.send_message(
+                chat_id=p.user.telegram_id,
+                text=message,
+                parse_mode=ParseMode.MARKDOWN,
+            )
+            count += 1
+        except (TelegramForbiddenError, TelegramBadRequest):
+            pass
+    return count
+
+
 async def notify_tournament_started(
     bot: Bot,
     participants: list,

@@ -6,9 +6,15 @@ class AdminTournamentStates(StatesGroup):
     enter_name         = State()  # Tournament name
     choose_type        = State()  # SBD / BP / DL / PP
     choose_categories  = State()  # Multi-select weight categories
+    enter_description  = State()  # Optional tournament description
     confirm            = State()  # Review + save
 
 
 class AdminScoringStates(StatesGroup):
     """FSM for live scoring panel."""
     enter_weight = State()   # Admin types attempt weight after clicking ⚖️
+
+
+class AdminAnnouncementStates(StatesGroup):
+    """FSM for broadcasting announcements to tournament participants."""
+    enter_text = State()   # Admin types the announcement message
