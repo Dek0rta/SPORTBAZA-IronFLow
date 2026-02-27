@@ -25,6 +25,7 @@ from bot.handlers.admin.tournament import router as admin_tournament_router
 from bot.handlers.admin.scoring import router as admin_scoring_router
 from bot.handlers.admin.export import router as admin_export_router
 from bot.handlers.admin.analytics import router as admin_analytics_router
+from bot.handlers.fallback import router as fallback_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -72,6 +73,9 @@ def build_dispatcher() -> Dispatcher:
     dp.include_router(admin_scoring_router)
     dp.include_router(admin_export_router)
     dp.include_router(admin_analytics_router)
+
+    # !! Must be last — catches any callback not handled above !!
+    dp.include_router(fallback_router)
 
     return dp
 
