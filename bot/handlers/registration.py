@@ -15,12 +15,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.keyboards import (
     MainMenuCb, TournamentCb,
-    tournament_list_kb, gender_kb, cancel_registration_kb,
+    tournament_list_kb, gender_kb, age_category_kb, cancel_registration_kb,
     confirm_registration_kb, athlete_main_menu,
 )
+from bot.models.models import AgeCategory
 from bot.services import (
     list_open_tournaments, get_tournament, get_user, register_participant,
-    get_participant,
+    get_participant, list_participants,
 )
 from bot.states import RegistrationStates
 
@@ -70,8 +71,11 @@ async def cq_tournament_selected(
     await state.update_data(tournament_id=t.id, tournament_name=t.name)
     await state.set_state(RegistrationStates.enter_full_name)
 
+    desc_line = f"\n📝 _{t.description}_\n" if t.description else ""
     await callback.message.edit_text(
-        f"✅ *{t.name}*\n\n"
+        f"✅ *{t.name}*\n"
+        f"📋 {t.type_label}"
+        f"{desc_line}\n"
         f"Введите ваше *ФИО* (полностью, например: _Иванов Иван Иванович_):",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=cancel_registration_kb(),
@@ -132,18 +136,38 @@ async def msg_bodyweight(message: Message, state: FSMContext) -> None:
 async def cq_gender(callback: CallbackQuery, state: FSMContext) -> None:
     gender = callback.data.split(":")[1]
     await state.update_data(gender=gender)
+    await state.set_state(RegistrationStates.choose_age_category)
+
+    g_label = "👨 Мужчины" if gender == "M" else "👩 Женщины"
+    await callback.message.edit_text(
+        f"🚻 Пол: *{g_label}*\n\n"
+        f"Выберите *возрастную категорию*:",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=age_category_kb(),
+    )
+    await callback.answer()
+
+
+# ── Step 5: age category ──────────────────────────────────────────────────────
+
+@router.callback_query(F.data.startswith("reg_age:"), RegistrationStates.choose_age_category)
+async def cq_age_category(callback: CallbackQuery, state: FSMContext) -> None:
+    age_cat = callback.data.split(":")[1]
+    await state.update_data(age_category=age_cat)
     await state.set_state(RegistrationStates.confirm)
 
     data = await state.get_data()
-    g_label = "👨 Мужчина" if gender == "M" else "👩 Женщина"
+    g_label = "👨 Мужчина" if data["gender"] == "M" else "👩 Женщина"
+    age_label = AgeCategory.LABELS.get(age_cat, age_cat)
 
     text = (
         f"📝 *Проверьте данные заявки:*\n\n"
         f"🏆 Турнир: *{data['tournament_name']}*\n"
         f"👤 ФИО: {data['full_name']}\n"
         f"⚖️ Вес: `{data['bodyweight']:g} кг`\n"
-        f"🚻 Пол: {g_label}\n\n"
-        f"_Категория будет определена автоматически._"
+        f"🚻 Пол: {g_label}\n"
+        f"🏅 Возрастная категория: {age_label}\n\n"
+        f"_Весовая категория будет определена автоматически._"
     )
     await callback.message.edit_text(
         text,
@@ -153,7 +177,18 @@ async def cq_gender(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
 
-# ── Step 5: confirm ───────────────────────────────────────────────────────────
+# ── Step 5.1: text fallback during age-category step ─────────────────────────
+
+@router.message(RegistrationStates.choose_age_category)
+async def msg_age_category_hint(message: Message) -> None:
+    """Catch accidental text input during the age-category selection step."""
+    await message.answer(
+        "👆 Пожалуйста, выберите возрастную категорию, нажав на одну из кнопок:",
+        reply_markup=age_category_kb(),
+    )
+
+
+# ── Step 6: confirm ───────────────────────────────────────────────────────────
 
 @router.callback_query(F.data == "reg_confirm", RegistrationStates.confirm)
 async def cq_confirm_registration(
@@ -176,6 +211,7 @@ async def cq_confirm_registration(
         full_name=data["full_name"],
         bodyweight=data["bodyweight"],
         gender=data["gender"],
+        age_category=data.get("age_category"),
     )
 
     if error:
@@ -185,7 +221,12 @@ async def cq_confirm_registration(
 
     await state.clear()
 
+    # Re-fetch with all relationships loaded — the freshly-created participant
+    # has lazy relationships that cannot be accessed in async context.
+    participant = await get_participant(session, participant.id)
+
     cat = participant.category.display_name if participant.category else "будет назначена"
+    age_label = AgeCategory.LABELS.get(participant.age_category, "") if participant.age_category else ""
     text = (
         f"🎉 *Вы успешно зарегистрированы!*\n\n"
         f"━━━━━━━━━━━━━━━━━━\n"
@@ -193,7 +234,8 @@ async def cq_confirm_registration(
         f"━━━━━━━━━━━━━━━━━━\n\n"
         f"👤 {participant.full_name}\n"
         f"⚖️ Вес: `{participant.bodyweight:g} кг`\n"
-        f"📂 Категория: {cat}\n"
+        f"🏅 Возрастная категория: {age_label}\n"
+        f"📂 Весовая категория: {cat}\n"
         f"📌 Статус: ⚪️ Ожидание подтверждения\n\n"
         f"Вы получите уведомление, когда заявка будет подтверждена. 🔔"
     )
