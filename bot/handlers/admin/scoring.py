@@ -160,6 +160,7 @@ async def _show_scoring_card(
 @router.callback_query(F.data.startswith("att_new:"))
 async def cq_set_weight_start(
     callback: CallbackQuery,
+    session: AsyncSession,
     state: FSMContext,
 ) -> None:
     # Format: att_new:{pid}:{lift_type}:{attempt_number}
@@ -167,13 +168,15 @@ async def cq_set_weight_start(
     pid = int(pid_s)
     num = int(num_s)
 
+    p = await get_participant(session, pid)
+    tid = p.tournament_id if p else 0
+
     await state.set_state(AdminScoringStates.enter_weight)
     await state.update_data(
         participant_id=pid,
         lift_type=lift_type,
         attempt_number=num,
-        # Tournament ID needed for "cancel" button — embed in state
-        tournament_id=callback.message.chat.id,   # fallback; overridden below
+        tournament_id=tid,
     )
 
     from bot.models.models import TournamentType

@@ -76,10 +76,17 @@ async def cq_participant_list(
 ) -> None:
     participants = await list_participants(session, callback_data.tid)
     if not participants:
+        from aiogram.utils.keyboard import InlineKeyboardBuilder
+        from aiogram.types import InlineKeyboardButton
+        back_kb = InlineKeyboardBuilder()
+        back_kb.row(InlineKeyboardButton(
+            text="🔙 Назад к турниру",
+            callback_data=TournamentCb(action="view", tid=callback_data.tid).pack(),
+        ))
         await callback.message.edit_text(
             "👥 *Участники*\n\n_Нет участников._",
             parse_mode=ParseMode.MARKDOWN,
-            reply_markup=TournamentCb(action="view", tid=callback_data.tid),
+            reply_markup=back_kb.as_markup(),
         )
         await callback.answer()
         return

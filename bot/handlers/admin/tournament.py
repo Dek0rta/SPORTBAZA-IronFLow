@@ -13,6 +13,7 @@ from bot.keyboards import (
     AdminPanelCb, TournamentCb,
     tournament_list_admin_kb, tournament_detail_admin_kb,
     confirm_action_kb, category_setup_kb,
+    description_input_kb, announce_cancel_kb,
     admin_main_menu, PREDEFINED_CATEGORIES,
 )
 from bot.middlewares import IsAdmin
@@ -22,8 +23,8 @@ from bot.services import (
     set_tournament_status, delete_tournament, create_categories,
     list_participants,
 )
-from bot.services.notification_service import notify_tournament_started
-from bot.states import AdminTournamentStates
+from bot.services.notification_service import notify_tournament_started, notify_announcement
+from bot.states import AdminTournamentStates, AdminAnnouncementStates
 
 logger = logging.getLogger(__name__)
 router = Router(name="admin_tournament")
@@ -218,12 +219,10 @@ async def cq_categories_confirmed(
     session: AsyncSession,
     state: FSMContext,
 ) -> None:
-    # Answer FIRST — Telegram clears the spinner immediately, no infinite loading
-    await callback.answer()
-
     # Guard: state may have been lost after bot restart
     current_state = await state.get_state()
     if current_state != AdminTournamentStates.choose_categories.state:
+        await callback.answer()
         await callback.message.edit_text(
             "⚠️ *Сессия устарела.*\n\nНачните создание турнира заново.",
             parse_mode=ParseMode.MARKDOWN,
@@ -238,36 +237,152 @@ async def cq_categories_confirmed(
         await callback.answer("⚠️ Выберите хотя бы одну категорию!", show_alert=True)
         return
 
-    # Create tournament
+    # Answer after validation passes — ensures alert shows when needed above
+    await callback.answer()
+
+    # Save selected categories in state, move to description step
+    await state.update_data(selected_categories=list(selected))
+    await state.set_state(AdminTournamentStates.enter_description)
+
+    await callback.message.edit_text(
+        f"📝 *Описание турнира*\n\n"
+        f"Введите описание — оно будет показано участникам при выборе турнира.\n\n"
+        f"_Или нажмите «Пропустить», если описание не нужно._",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=description_input_kb(),
+    )
+
+
+# ── Description step ─────────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "trn_desc_skip", AdminTournamentStates.enter_description)
+async def cq_skip_description(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext,
+) -> None:
+    await callback.answer()
+    t, cat_tuples = await _create_tournament_from_state(
+        session, state, callback.from_user.id, description=None
+    )
+    cat_list = ", ".join(f"{'М' if g=='M' else 'Ж'}{n}" for g, n in sorted(cat_tuples))
+    await callback.message.edit_text(
+        _tournament_created_text(t, len(cat_tuples), cat_list, description=None),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=tournament_detail_admin_kb(t),
+    )
+
+
+@router.message(AdminTournamentStates.enter_description)
+async def msg_tournament_description(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext,
+) -> None:
+    description = message.text.strip() if message.text else ""
+    if len(description) < 3:
+        await message.answer(
+            "⚠️ Описание слишком короткое. Введите подробнее или нажмите «Пропустить»:",
+            reply_markup=description_input_kb(),
+        )
+        return
+    t, cat_tuples = await _create_tournament_from_state(
+        session, state, message.from_user.id, description=description
+    )
+    cat_list = ", ".join(f"{'М' if g=='M' else 'Ж'}{n}" for g, n in sorted(cat_tuples))
+    await message.answer(
+        _tournament_created_text(t, len(cat_tuples), cat_list, description=description),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=tournament_detail_admin_kb(t),
+    )
+
+
+async def _create_tournament_from_state(session, state, admin_tg_id: int, description):
+    data     = await state.get_data()
+    selected = set(data.get("selected_categories", []))
     t = await create_tournament(
         session,
         name=data["name"],
         tournament_type=data["tournament_type"],
-        created_by=callback.from_user.id,
+        created_by=admin_tg_id,
+        description=description,
     )
-
-    # Create categories
-    cat_tuples = []
-    for key in selected:
-        gender, cat_name = key.split(":", 1)
-        cat_tuples.append((gender, cat_name))
-
+    cat_tuples = [(key.split(":", 1)[0], key.split(":", 1)[1]) for key in selected]
     await create_categories(session, t.id, cat_tuples)
     await state.clear()
+    return t, cat_tuples
 
-    cat_list = ", ".join(
-        f"{'М' if g=='M' else 'Ж'}{n}" for g, n in sorted(cat_tuples)
-    )
-    await callback.message.edit_text(
+
+def _tournament_created_text(t, cat_count: int, cat_list: str, description) -> str:
+    desc_line = f"📝 _{description}_\n\n" if description else ""
+    return (
         f"✅ *Турнир создан!*\n\n"
         f"🏆 {t.name}\n"
         f"📋 Тип: {t.type_label}\n"
-        f"📂 Категорий: {len(cat_tuples)}\n"
+        f"📂 Категорий: {cat_count}\n"
         f"   _{cat_list}_\n\n"
+        f"{desc_line}"
         f"Турнир в статусе *«Черновик»*.\n"
-        f"Откройте регистрацию, когда будете готовы.",
+        f"Откройте регистрацию, когда будете готовы."
+    )
+
+
+# ── Announcements ─────────────────────────────────────────────────────────────
+
+@router.callback_query(TournamentCb.filter(F.action == "announce"))
+async def cq_announce_start(
+    callback: CallbackQuery,
+    callback_data: TournamentCb,
+    session: AsyncSession,
+    state: FSMContext,
+) -> None:
+    t = await get_tournament(session, callback_data.tid, load_relations=False)
+    if not t:
+        await callback.answer("Турнир не найден.", show_alert=True)
+        return
+
+    await state.set_state(AdminAnnouncementStates.enter_text)
+    await state.update_data(tournament_id=t.id, tournament_name=t.name)
+
+    await callback.message.edit_text(
+        f"📢 *Объявление для участников*\n\n"
+        f"🏆 {t.name}\n\n"
+        f"Введите текст объявления. Оно будет отправлено всем участникам турнира:",
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=tournament_detail_admin_kb(t),
+        reply_markup=announce_cancel_kb(t.id),
+    )
+    await callback.answer()
+
+
+@router.message(AdminAnnouncementStates.enter_text)
+async def msg_announcement_text(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext,
+) -> None:
+    text = message.text.strip() if message.text else ""
+    if len(text) < 5:
+        await message.answer(
+            "⚠️ Слишком короткий текст. Введите объявление подробнее:",
+            reply_markup=announce_cancel_kb(0),
+        )
+        return
+
+    data = await state.get_data()
+    tid  = data["tournament_id"]
+    t_name = data["tournament_name"]
+    await state.clear()
+
+    participants = await list_participants(session, tid)
+    count = await notify_announcement(message.bot, participants, text, t_name)
+
+    preview = text[:120] + ("…" if len(text) > 120 else "")
+    await message.answer(
+        f"✅ *Объявление отправлено!*\n\n"
+        f"Получили уведомление: *{count}* участников.\n\n"
+        f"_{preview}_",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=admin_main_menu(),
     )
 
 
