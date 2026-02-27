@@ -2,24 +2,18 @@
 Google Sheets export service.
 
 Exports full competition results to a Google Spreadsheet using
-gspread-asyncio for non-blocking I/O.
+gspread-asyncio 2.0.0 (wraps gspread 6.x) for non-blocking I/O.
 
 Sheet layout
 ------------
-Row 1: Tournament title (merged, bold, blue)
+Row 1: Tournament title
 Row 2: Export timestamp
 Row 3: blank
 For each weight category:
-    Row N:   Category header (bold, dark background)
+    Row N:   Category header (bold, blue)
     Row N+1: Column headers
-    Row N+2…: Athlete rows (top-3 highlighted in gold/silver/bronze)
+    Row N+2…: Athlete rows (top-3 highlighted gold/silver/bronze)
     Row M:   blank separator
-
-Column order varies by tournament type:
-  SBD : Place | Athlete | BW | S1 | S2 | S3 | Squat | B1 | B2 | B3 | Bench | D1 | D2 | D3 | DL | Total
-  BP  : Place | Athlete | BW | B1 | B2 | B3 | Total
-  DL  : Place | Athlete | BW | D1 | D2 | D3 | Total
-  PP  : Place | Athlete | BW | B1 | B2 | B3 | Bench | D1 | D2 | D3 | DL | Total
 """
 from __future__ import annotations
 
@@ -29,20 +23,18 @@ from typing import List, Optional
 
 from bot.config import settings
 from bot.models.models import Tournament, Participant, AttemptResult, TournamentType
-from bot.services.ranking_service import compute_rankings, CategoryRanking, AthleteResult
+from bot.services.ranking_service import compute_rankings, AthleteResult
 
 logger = logging.getLogger(__name__)
 
 # ── Colour palette (RGB 0-1 float for Sheets API) ────────────────────────────
 COLOUR = {
-    "header_bg":  {"red": 0.176, "green": 0.310, "blue": 0.576},   # #2D4F93
+    "header_bg":  {"red": 0.176, "green": 0.310, "blue": 0.576},
     "header_fg":  {"red": 1.0,   "green": 1.0,   "blue": 1.0},
-    "cat_bg":     {"red": 0.851, "green": 0.882, "blue": 0.953},   # #D9E1F3
-    "gold":       {"red": 1.0,   "green": 0.843, "blue": 0.0},     # #FFD700
-    "silver":     {"red": 0.753, "green": 0.753, "blue": 0.753},   # #C0C0C0
-    "bronze":     {"red": 0.804, "green": 0.498, "blue": 0.196},   # #CD7F32
-    "white":      {"red": 1.0,   "green": 1.0,   "blue": 1.0},
-    "light_grey": {"red": 0.95,  "green": 0.95,  "blue": 0.95},
+    "cat_bg":     {"red": 0.851, "green": 0.882, "blue": 0.953},
+    "gold":       {"red": 1.0,   "green": 0.843, "blue": 0.0},
+    "silver":     {"red": 0.753, "green": 0.753, "blue": 0.753},
+    "bronze":     {"red": 0.804, "green": 0.498, "blue": 0.196},
 }
 
 MEDAL_COLOURS = [COLOUR["gold"], COLOUR["silver"], COLOUR["bronze"]]
@@ -54,7 +46,6 @@ async def export_to_sheets(
 ) -> Optional[str]:
     """
     Build and populate a Google Sheet with competition results.
-
     Returns the spreadsheet URL on success, None if Sheets is not configured.
     """
     if not settings.sheets_enabled:
@@ -77,80 +68,86 @@ async def export_to_sheets(
     def _make_credentials():
         return Credentials.from_service_account_info(creds_info, scopes=scopes)
 
+    # gspread-asyncio 2.0.0: AsyncioGspreadClientManager API unchanged
     agcm = gspread_asyncio.AsyncioGspreadClientManager(_make_credentials)
     agc  = await agcm.authorize()
 
     spreadsheet = await agc.open_by_key(settings.GOOGLE_SPREADSHEET_ID)
 
-    # Create or overwrite a sheet named after the tournament
-    sheet_title = f"{tournament.name}"
+    # Create or clear the worksheet
+    sheet_title = tournament.name[:100]  # Sheets tab name limit
     try:
         worksheet = await spreadsheet.worksheet(sheet_title)
         await worksheet.clear()
     except Exception:
-        worksheet = await spreadsheet.add_worksheet(title=sheet_title, rows=500, cols=20)
+        worksheet = await spreadsheet.add_worksheet(
+            title=sheet_title, rows=500, cols=20
+        )
+
+    # Get the numeric sheet ID for formatting requests
+    # In gspread-asyncio 2.0.0 the underlying sync object is at .ws
+    sheet_id = worksheet.ws.id
 
     lift_types = tournament.lift_types
     headers    = _build_column_headers(lift_types)
     rankings   = compute_rankings(participants, tournament.tournament_type)
 
     all_rows: list[list] = []
+    format_requests: list[dict] = []
+    current_row = 4  # 1-indexed
 
-    # Title row
+    # ── Title rows ────────────────────────────────────────────────────────────
     all_rows.append([f"🏆 {tournament.name}  |  {tournament.type_label}"])
     all_rows.append([f"Экспорт: {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC"])
-    all_rows.append([])   # blank
+    all_rows.append([])  # blank
 
-    format_requests = []   # Sheets API batchUpdate requests
-    current_row = 4        # 1-indexed in Sheets
-
+    # ── Per-category data ─────────────────────────────────────────────────────
     for ranking in rankings:
-        cat_name = ranking.category.display_name if ranking.category else "Без категории"
+        cat_name = (
+            ranking.category.display_name if ranking.category else "Без категории"
+        )
 
-        # Category header
+        # Category header row
         all_rows.append([cat_name])
         format_requests.append(
-            _format_range(worksheet, current_row, 1, current_row, len(headers) + 1,
-                          bg=COLOUR["cat_bg"], bold=True)
+            _fmt_range(sheet_id, current_row, 1, current_row, len(headers) + 1,
+                       bg=COLOUR["cat_bg"], bold=True)
         )
         current_row += 1
 
-        # Column headers
+        # Column header row
         all_rows.append(["Место"] + headers)
         format_requests.append(
-            _format_range(worksheet, current_row, 1, current_row, len(headers) + 1,
-                          bg=COLOUR["header_bg"], fg=COLOUR["header_fg"], bold=True)
+            _fmt_range(sheet_id, current_row, 1, current_row, len(headers) + 1,
+                       bg=COLOUR["header_bg"], fg=COLOUR["header_fg"], bold=True)
         )
         current_row += 1
 
         # Athlete rows
         for r in ranking.results:
-            row = _build_athlete_row(r, lift_types)
-            all_rows.append(row)
-
+            all_rows.append(_build_athlete_row(r, lift_types))
             if r.place and r.place <= 3:
-                bg = MEDAL_COLOURS[r.place - 1]
                 format_requests.append(
-                    _format_range(worksheet, current_row, 1, current_row, len(headers) + 1,
-                                  bg=bg, bold=(r.place == 1))
+                    _fmt_range(sheet_id, current_row, 1, current_row,
+                               len(headers) + 1,
+                               bg=MEDAL_COLOURS[r.place - 1],
+                               bold=(r.place == 1))
                 )
             current_row += 1
 
-        all_rows.append([])  # separator
+        all_rows.append([])  # blank separator
         current_row += 1
 
-    # Bulk write all rows
-    await worksheet.update("A1", all_rows)
+    # ── Write data ────────────────────────────────────────────────────────────
+    # gspread 6.x: update(values, range_name) — arguments swapped vs 5.x
+    await worksheet.update(all_rows, "A1")
 
-    # Apply formatting (best-effort)
-    try:
-        spreadsheet_obj = await agc.open_by_key(settings.GOOGLE_SPREADSHEET_ID)
-        raw_spreadsheet  = await spreadsheet_obj.get_spreadsheet()
-        # gspread-asyncio batch_update approach
-        body = {"requests": format_requests}
-        await raw_spreadsheet.batch_update(body)
-    except Exception as fmt_err:
-        logger.warning("Could not apply formatting: %s", fmt_err)
+    # ── Apply formatting (best-effort) ────────────────────────────────────────
+    if format_requests:
+        try:
+            await spreadsheet.batch_update({"requests": format_requests})
+        except Exception as fmt_err:
+            logger.warning("Could not apply formatting: %s", fmt_err)
 
     return f"https://docs.google.com/spreadsheets/d/{settings.GOOGLE_SPREADSHEET_ID}"
 
@@ -168,19 +165,18 @@ def _build_column_headers(lift_types: List[str]) -> List[str]:
 
 
 def _build_athlete_row(result: AthleteResult, lift_types: List[str]) -> list:
-    p      = result.participant
-    place  = str(result.place) if result.place else "—"
-    row    = [place, p.full_name, p.bodyweight]
+    p   = result.participant
+    row = [str(result.place) if result.place else "—", p.full_name, p.bodyweight]
 
     attempt_map = {
         (a.lift_type, a.attempt_number): a for a in p.attempts
     }
-
     for lt in lift_types:
         for num in (1, 2, 3):
             a = attempt_map.get((lt, num))
             if a and a.weight_kg:
-                mark = "✓" if a.result == AttemptResult.GOOD else ("✗" if a.result == AttemptResult.BAD else "")
+                mark = "✓" if a.result == AttemptResult.GOOD else (
+                       "✗" if a.result == AttemptResult.BAD else "")
                 row.append(f"{a.weight_kg:g}{mark}")
             else:
                 row.append("—")
@@ -191,8 +187,8 @@ def _build_athlete_row(result: AthleteResult, lift_types: List[str]) -> list:
     return row
 
 
-def _format_range(
-    worksheet,
+def _fmt_range(
+    sheet_id: int,
     start_row: int,
     start_col: int,
     end_row: int,
@@ -201,10 +197,7 @@ def _format_range(
     fg: Optional[dict] = None,
     bold: bool = False,
 ) -> dict:
-    """
-    Build a Sheets API format request dict.
-    Uses worksheet.id for the sheetId field.
-    """
+    """Build a Sheets API repeatCell request dict."""
     fmt: dict = {}
     if bg:
         fmt["backgroundColor"] = bg
@@ -218,7 +211,7 @@ def _format_range(
     return {
         "repeatCell": {
             "range": {
-                "sheetId":          0,  # patched after sheet creation
+                "sheetId":          sheet_id,
                 "startRowIndex":    start_row - 1,
                 "endRowIndex":      end_row,
                 "startColumnIndex": start_col - 1,
