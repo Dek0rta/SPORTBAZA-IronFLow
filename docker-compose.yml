@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       sportbaza
+      POSTGRES_USER:     sportbaza
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sportbaza_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sportbaza"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Telegram Bot ──────────────────────────────────────────────────────────
+  bot:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      BOT_TOKEN:                 ${BOT_TOKEN}
+      ADMIN_IDS:                 ${ADMIN_IDS}
+      DATABASE_URL:              postgresql+asyncpg://sportbaza:${POSTGRES_PASSWORD:-sportbaza_secret}@db:5432/sportbaza
+      GOOGLE_CREDENTIALS_JSON:   ${GOOGLE_CREDENTIALS_JSON:-}
+      GOOGLE_SPREADSHEET_ID:     ${GOOGLE_SPREADSHEET_ID:-}
+    # Forward logs to stdout for Railway / Docker log aggregation
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    stop_grace_period: 15s   # Allow SIGTERM handler to finish cleanly
+
+volumes:
+  postgres_data:

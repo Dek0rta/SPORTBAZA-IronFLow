@@ -1,0 +1,47 @@
+"""
+Main menu keyboards — context-aware (athlete vs. admin, tournament phase).
+"""
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+from bot.keyboards.callbacks import MainMenuCb, AdminPanelCb
+
+
+def athlete_main_menu() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="🏋️ Зарегистрироваться",    callback_data=MainMenuCb(action="register").pack()),
+    )
+    builder.row(
+        InlineKeyboardButton(text="📋 Мои заявки",            callback_data=MainMenuCb(action="my_registrations").pack()),
+    )
+    builder.row(
+        InlineKeyboardButton(text="🏆 Текущие турниры",       callback_data=MainMenuCb(action="tournaments_public").pack()),
+    )
+    return builder.as_markup()
+
+
+def admin_main_menu() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="🎯 Управление турнирами",  callback_data=AdminPanelCb(action="tournaments").pack()),
+    )
+    builder.row(
+        InlineKeyboardButton(text="⚡ Live-Судейство",        callback_data=AdminPanelCb(action="scoring").pack()),
+    )
+    builder.row(
+        InlineKeyboardButton(text="📊 Аналитика",             callback_data=AdminPanelCb(action="analytics").pack()),
+    )
+    builder.row(
+        InlineKeyboardButton(text="📤 Экспорт в Google Sheets", callback_data=AdminPanelCb(action="export").pack()),
+    )
+    builder.row(
+        InlineKeyboardButton(text="👥 Участники",             callback_data=AdminPanelCb(action="participants").pack()),
+    )
+    return builder.as_markup()
+
+
+def back_to_main() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="🔙 Главное меню", callback_data=MainMenuCb(action="main").pack()))
+    return builder.as_markup()
