@@ -64,8 +64,19 @@ def my_registrations_kb(participants: list) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def participant_profile_kb(pid: int, can_withdraw: bool = True) -> InlineKeyboardMarkup:
+def participant_profile_kb(
+    pid: int,
+    can_withdraw: bool = True,
+    can_declare_weights: bool = False,
+) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+    if can_declare_weights:
+        builder.row(
+            InlineKeyboardButton(
+                text="⚖️ Заявить / изменить веса",
+                callback_data=f"aweights_panel:{pid}",
+            )
+        )
     if can_withdraw:
         builder.row(
             InlineKeyboardButton(
