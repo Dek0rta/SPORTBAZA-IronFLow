@@ -40,7 +40,7 @@ class ScoringNavCb(CallbackData, prefix="snav"):
 
 
 class AdminPanelCb(CallbackData, prefix="adm"):
-    action: str           # tournaments | scoring | export | analytics | participants
+    action: str           # tournaments | scoring | export | analytics | participants | qr_scan
 
 
 class AnalyticsCb(CallbackData, prefix="anl"):
@@ -51,3 +51,22 @@ class AnalyticsCb(CallbackData, prefix="anl"):
 class ExportCb(CallbackData, prefix="exp"):
     action: str           # sheets
     tid: int = 0
+
+
+class RecordsCb(CallbackData, prefix="rcd"):
+    action: str           # list | filter_gender | filter_age | filter_weight | reset
+    gender: str = ""
+    age_cat: str = ""
+    wcat: str = ""
+    page: int = 0
+
+
+class FormulaSelectCb(CallbackData, prefix="frm"):
+    action: str           # set | toggle
+    tid: int = 0
+    formula: str = ""
+
+
+class QrCheckinCb(CallbackData, prefix="qrc"):
+    action: str           # scan | confirm | cancel
+    pid: int = 0

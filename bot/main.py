@@ -1,5 +1,5 @@
 """
-SPORTBAZA — High-End Powerlifting Tournament Management Bot
+SPORTBAZA Iron Flow — High-End Powerlifting Tournament Management Bot
 Entry point: creates the bot, registers routers + middleware, handles graceful shutdown.
 """
 import asyncio
@@ -14,7 +14,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import ErrorEvent
 
 from bot.config import settings
-from bot.middlewares import DatabaseMiddleware, AdminMiddleware
+from bot.middlewares import DatabaseMiddleware, AdminMiddleware, RateLimitMiddleware
 from bot.models.base import engine, Base
 from sqlalchemy import text
 
@@ -23,11 +23,14 @@ from bot.handlers.common import router as common_router
 from bot.handlers.registration import router as registration_router
 from bot.handlers.athlete import router as athlete_router
 from bot.handlers.athlete_weights import router as athlete_weights_router
+from bot.handlers.records import router as records_router
 from bot.handlers.admin.panel import router as admin_panel_router
 from bot.handlers.admin.tournament import router as admin_tournament_router
 from bot.handlers.admin.scoring import router as admin_scoring_router
 from bot.handlers.admin.export import router as admin_export_router
 from bot.handlers.admin.analytics import router as admin_analytics_router
+from bot.handlers.admin.formula import router as admin_formula_router
+from bot.handlers.admin.qr_scanner import router as admin_qr_router
 from bot.handlers.fallback import router as fallback_router
 
 logging.basicConfig(
@@ -39,19 +42,27 @@ logger = logging.getLogger(__name__)
 
 
 async def create_tables() -> None:
-    """Create all database tables on startup."""
+    """Create all database tables on startup and run incremental migrations."""
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        # Incremental migrations for existing databases (idempotent — errors are swallowed)
+
+        # Incremental migrations for existing databases (idempotent — errors swallowed)
+        _migrations = [
+            # v1 migrations
+            "ALTER TABLE participants ADD COLUMN age_category VARCHAR(20)",
+            # Iron Flow v2 migrations
+            "ALTER TABLE tournaments ADD COLUMN scoring_formula VARCHAR(20) DEFAULT 'total'",
+            "ALTER TABLE participants ADD COLUMN qr_token VARCHAR(36)",
+            "ALTER TABLE participants ADD COLUMN checked_in BOOLEAN DEFAULT FALSE",
+        ]
         async with engine.begin() as conn:
-            for sql in [
-                "ALTER TABLE participants ADD COLUMN age_category VARCHAR(20)",
-            ]:
+            for sql in _migrations:
                 try:
                     await conn.execute(text(sql))
                 except Exception:
-                    pass  # Column already exists (new DB created via create_all)
+                    pass  # Column already exists
+
         logger.info("Database tables ready.")
     except Exception as e:
         logger.critical(
@@ -84,6 +95,7 @@ def build_dispatcher() -> Dispatcher:
                 pass
 
     # ── Global middlewares ────────────────────────────────────────────────────
+    dp.update.middleware(RateLimitMiddleware(rate=30, period=60.0))
     dp.update.middleware(DatabaseMiddleware())
     dp.update.middleware(AdminMiddleware())
 
@@ -92,6 +104,7 @@ def build_dispatcher() -> Dispatcher:
     dp.include_router(registration_router)
     dp.include_router(athlete_router)
     dp.include_router(athlete_weights_router)
+    dp.include_router(records_router)
 
     # Admin routers
     dp.include_router(admin_panel_router)
@@ -99,6 +112,8 @@ def build_dispatcher() -> Dispatcher:
     dp.include_router(admin_scoring_router)
     dp.include_router(admin_export_router)
     dp.include_router(admin_analytics_router)
+    dp.include_router(admin_formula_router)
+    dp.include_router(admin_qr_router)
 
     # !! Must be last — catches any callback not handled above !!
     dp.include_router(fallback_router)
@@ -107,7 +122,7 @@ def build_dispatcher() -> Dispatcher:
 
 
 async def main() -> None:
-    logger.info("Starting SPORTBAZA bot…")
+    logger.info("Starting SPORTBAZA Iron Flow bot…")
     await create_tables()
 
     bot = Bot(

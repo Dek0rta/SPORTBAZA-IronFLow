@@ -13,6 +13,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from aiogram.types import BufferedInputFile
+
 from bot.keyboards import (
     MainMenuCb, TournamentCb,
     tournament_list_kb, gender_kb, age_category_kb, cancel_registration_kb,
@@ -23,6 +25,7 @@ from bot.services import (
     list_open_tournaments, get_tournament, get_user, register_participant,
     get_participant, list_participants,
 )
+from bot.services.qr_service import make_qr_token, generate_qr_buffered
 from bot.states import RegistrationStates
 
 logger = logging.getLogger(__name__)
@@ -204,6 +207,9 @@ async def cq_confirm_registration(
         await callback.answer("Ошибка: пользователь не найден.", show_alert=True)
         return
 
+    # Generate QR token before registering
+    qr_token = make_qr_token()
+
     participant, error = await register_participant(
         session,
         tournament_id=data["tournament_id"],
@@ -212,6 +218,7 @@ async def cq_confirm_registration(
         bodyweight=data["bodyweight"],
         gender=data["gender"],
         age_category=data.get("age_category"),
+        qr_token=qr_token,
     )
 
     if error:
@@ -237,12 +244,30 @@ async def cq_confirm_registration(
         f"🏅 Возрастная категория: {age_label}\n"
         f"📂 Весовая категория: {cat}\n"
         f"📌 Статус: ⚪️ Ожидание подтверждения\n\n"
-        f"Вы получите уведомление, когда заявка будет подтверждена. 🔔"
+        f"Вы получите уведомление, когда заявка будет подтверждена. 🔔\n\n"
+        f"📷 *Ваш QR-билет отправлен ниже* — предъявите его на check-in."
     )
     await callback.message.edit_text(
         text, parse_mode=ParseMode.MARKDOWN, reply_markup=athlete_main_menu()
     )
     await callback.answer("✅ Заявка принята!")
+
+    # Send QR ticket as a separate photo message
+    try:
+        qr_buf = generate_qr_buffered(participant.qr_token or qr_token)
+        qr_file = BufferedInputFile(qr_buf.read(), filename="ticket.png")
+        await callback.message.answer_photo(
+            photo=qr_file,
+            caption=(
+                f"🎫 *QR-билет*\n"
+                f"👤 {participant.full_name}\n"
+                f"🏆 {data['tournament_name']}\n\n"
+                f"_Предъявите этот код организаторам при регистрации явки._"
+            ),
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    except Exception as exc:
+        logger.warning("Failed to send QR ticket: %s", exc)
 
 
 @router.callback_query(F.data == "reg_edit", RegistrationStates.confirm)

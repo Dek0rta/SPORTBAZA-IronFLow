@@ -1,5 +1,7 @@
 """
 Admin export handler — Google Sheets export + inline results table.
+Now includes: formula scores, overall champion, division rankings,
+and triggers Records Vault update on tournament finish.
 """
 import logging
 
@@ -10,10 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.keyboards import AdminPanelCb, TournamentCb, ExportCb, admin_main_menu
 from bot.middlewares import IsAdmin
-from bot.models.models import TournamentStatus
-from bot.services import list_tournaments, get_tournament, list_participants
-from bot.services.ranking_service import compute_rankings, format_total_breakdown
+from bot.models.models import TournamentStatus, FormulaType
+from bot.services import (
+    list_tournaments, get_tournament, list_participants,
+    compute_rankings, compute_overall_rankings, compute_division_rankings,
+    format_result_with_formula,
+)
 from bot.services.sheets_service import export_to_sheets
+from bot.services.records_service import update_records_after_tournament
 
 logger = logging.getLogger(__name__)
 router = Router(name="admin_export")
@@ -66,32 +72,51 @@ async def cq_export_tournament(
         return
 
     participants = await list_participants(session, callback_data.tid)
-    rankings     = compute_rankings(participants, t.tournament_type)
+    formula      = t.scoring_formula
+    formula_label = FormulaType.LABELS.get(formula, formula)
 
-    # ── Inline results summary ────────────────────────────────────────────────
-    lines = [f"🏆 *{t.name}* — Результаты\n"]
-    for cat_ranking in rankings:
-        cat_name = cat_ranking.category.display_name if cat_ranking.category else "Без кат."
-        lines.append(f"\n*📂 {cat_name}*")
+    # ── Update Records Vault for finished tournaments ─────────────────────────
+    if t.status == TournamentStatus.FINISHED:
+        try:
+            recs = await update_records_after_tournament(session, t.id)
+            if recs:
+                logger.info("Records Vault: %d new/updated records from tournament %d", recs, t.id)
+        except Exception as exc:
+            logger.warning("Records vault update failed: %s", exc)
+
+    # ── Overall (absolute) champion ───────────────────────────────────────────
+    overall = compute_overall_rankings(participants, t.tournament_type, formula)
+    lines   = [f"🏆 *{t.name}* — Итоговый протокол\n🔢 Формула: *{formula_label}*\n"]
+
+    if overall:
+        lines.append("*🥇 Абсолютный зачёт (Overall)*")
         lines.append("─────────────────")
+        for r in overall[:5]:
+            medal = "🥇" if r.place == 1 else ("🥈" if r.place == 2 else ("🥉" if r.place == 3 else f"`{r.place}.`"))
+            lines.append(f"{medal} {format_result_with_formula(r, formula)}")
+        lines.append("")
 
-        if not cat_ranking.results:
-            lines.append("_Нет участников_")
-            continue
-
-        for r in cat_ranking.results:
-            place_str = f"🥇" if r.place == 1 else (
-                         "🥈" if r.place == 2 else (
-                         "🥉" if r.place == 3 else f"`{r.place}.`"))
-            if r.total is not None:
-                total_str = f"`{r.total:g} кг`"
-            else:
-                total_str = "_бомб-аут_"
-
-            lines.append(
-                f"{place_str} {r.participant.full_name} — {total_str}  "
-                f"_{r.participant.bodyweight:g} кг_"
-            )
+    # ── Division + weight-category rankings ───────────────────────────────────
+    divisions = compute_division_rankings(participants, t.tournament_type, formula)
+    for div in divisions:
+        lines.append(f"\n*🏅 {div.age_label}*")
+        for cat_ranking in div.sub_rankings:
+            cat_name = cat_ranking.category_display
+            lines.append(f"\n*📂 {cat_name}*")
+            lines.append("─────────────────")
+            if not cat_ranking.results:
+                lines.append("_Нет участников_")
+                continue
+            for r in cat_ranking.results:
+                place_str = (
+                    "🥇" if r.place == 1 else
+                    "🥈" if r.place == 2 else
+                    "🥉" if r.place == 3 else
+                    f"`{r.place}.`" if r.place else "💣"
+                )
+                result_text = format_result_with_formula(r, formula)
+                bw_str = f"_{r.participant.bodyweight:g} кг_"
+                lines.append(f"{place_str} {result_text}  {bw_str}")
 
     # ── Sheets export button ──────────────────────────────────────────────────
     from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -108,8 +133,13 @@ async def cq_export_tournament(
         text="🔙 Назад", callback_data=AdminPanelCb(action="export").pack()
     ))
 
+    full_text = "\n".join(lines)
+    # Telegram message limit guard
+    if len(full_text) > 4000:
+        full_text = full_text[:3900] + "\n\n_…протокол обрезан. Используйте экспорт в Google Sheets для полного протокола._"
+
     await callback.message.edit_text(
-        "\n".join(lines),
+        full_text,
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=builder.as_markup(),
     )

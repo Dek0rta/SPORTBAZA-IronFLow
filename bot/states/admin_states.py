@@ -18,3 +18,8 @@ class AdminScoringStates(StatesGroup):
 class AdminAnnouncementStates(StatesGroup):
     """FSM for broadcasting announcements to tournament participants."""
     enter_text = State()   # Admin types the announcement message
+
+
+class AdminQrScanStates(StatesGroup):
+    """FSM for QR check-in scanner."""
+    waiting_token = State()  # Admin pastes or sends the UUID token

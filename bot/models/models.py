@@ -7,6 +7,8 @@ Tournament  — a competition event (type: SBD / BP / DL / PP)
   └─ WeightCategory  — e.g. "-93 кг М"
        └─ Participant — registered athlete (linked to a Telegram User)
             └─ Attempt — individual lift attempt (squat / bench / deadlift)
+
+PlatformRecord — all-time platform records vault (independent of tournaments)
 """
 from __future__ import annotations
 
@@ -107,6 +109,48 @@ class AttemptResult:
     }
 
 
+class FormulaType:
+    """Scoring formula options for tournament ranking."""
+    TOTAL        = "total"        # Raw total in kg (no coefficient)
+    WILKS        = "wilks"        # Wilks 2020
+    DOTS         = "dots"         # DOTS coefficient
+    GLOSSBRENNER = "glossbrenner" # Glossbrenner formula
+    IPF_GL       = "ipf_gl"       # IPF GL (Goodlift)
+
+    LABELS = {
+        "total":        "Сумма (кг)",
+        "wilks":        "Wilks 2020",
+        "dots":         "DOTS",
+        "glossbrenner": "Glossbrenner",
+        "ipf_gl":       "IPF GL",
+    }
+
+    SHORT = {
+        "total":        "Total",
+        "wilks":        "Wilks",
+        "dots":         "DOTS",
+        "glossbrenner": "Glossb.",
+        "ipf_gl":       "IPF GL",
+    }
+
+    ALL = [TOTAL, WILKS, DOTS, GLOSSBRENNER, IPF_GL]
+
+
+class RecordLiftType:
+    """Lift types tracked in the platform records vault."""
+    SQUAT     = "squat"
+    BENCH     = "bench"
+    DEADLIFT  = "deadlift"
+    TOTAL     = "total"
+
+    LABELS = {
+        "squat":    "Приседания",
+        "bench":    "Жим лёжа",
+        "deadlift": "Становая тяга",
+        "total":    "Сумма",
+    }
+
+
 # ─────────────────────────── Models ───────────────────────────────────────────
 
 class User(Base):
@@ -144,6 +188,7 @@ class Tournament(Base):
     created_by:      Mapped[int]           = mapped_column(BigInteger)   # telegram_id
     created_at:      Mapped[datetime]      = mapped_column(DateTime, default=func.now())
     description:     Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    scoring_formula: Mapped[str]           = mapped_column(String(20), default=FormulaType.TOTAL)
 
     categories:   Mapped[List["WeightCategory"]] = relationship(
         back_populates="tournament", cascade="all, delete-orphan"
@@ -169,6 +214,10 @@ class Tournament(Base):
             TournamentStatus.FINISHED:     "🏆",
         }
         return mapping.get(self.status, "❓")
+
+    @property
+    def formula_label(self) -> str:
+        return FormulaType.LABELS.get(self.scoring_formula, self.scoring_formula)
 
 
 class WeightCategory(Base):
@@ -204,6 +253,9 @@ class Participant(Base):
     status:        Mapped[str]           = mapped_column(String(30), default=ParticipantStatus.REGISTERED)
     lot_number:    Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     registered_at: Mapped[datetime]      = mapped_column(DateTime, default=func.now())
+    # QR check-in fields
+    qr_token:      Mapped[Optional[str]] = mapped_column(String(36), nullable=True, unique=True, index=True)
+    checked_in:    Mapped[bool]          = mapped_column(Boolean, default=False)
 
     user:       Mapped["User"]                  = relationship(back_populates="participants")
     tournament: Mapped["Tournament"]            = relationship(back_populates="participants")
@@ -277,3 +329,41 @@ class Attempt(Base):
         if self.weight_kg is None:
             return "—"
         return f"{self.weight_kg:g} кг"
+
+
+class PlatformRecord(Base):
+    """
+    All-time platform record for a specific lift / division combination.
+
+    Records are updated whenever a tournament finishes.
+    Each (lift_type, gender, age_category, weight_category_name) tuple
+    may have exactly one all-time record at a time.
+    """
+    __tablename__ = "platform_records"
+
+    id:                   Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
+    lift_type:            Mapped[str]           = mapped_column(String(20))     # RecordLiftType.*
+    weight_kg:            Mapped[float]         = mapped_column(Float)          # The record weight / total
+    formula_score:        Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    formula_type:         Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # FormulaType.*
+    gender:               Mapped[str]           = mapped_column(String(5))      # "M" | "F"
+    age_category:         Mapped[str]           = mapped_column(String(20))     # AgeCategory.*
+    weight_category_name: Mapped[str]           = mapped_column(String(50))     # e.g. "-93"
+    athlete_name:         Mapped[str]           = mapped_column(String(255))
+    tournament_id:        Mapped[Optional[int]] = mapped_column(ForeignKey("tournaments.id"), nullable=True)
+    tournament_name:      Mapped[str]           = mapped_column(String(255))
+    participant_id:       Mapped[Optional[int]] = mapped_column(ForeignKey("participants.id"), nullable=True)
+    set_at:               Mapped[datetime]      = mapped_column(DateTime, default=func.now())
+
+    @property
+    def lift_label(self) -> str:
+        from bot.models.models import RecordLiftType
+        return RecordLiftType.LABELS.get(self.lift_type, self.lift_type)
+
+    @property
+    def age_label(self) -> str:
+        return AgeCategory.LABELS.get(self.age_category, self.age_category)
+
+    @property
+    def gender_label(self) -> str:
+        return "Мужчины" if self.gender == "M" else "Женщины"

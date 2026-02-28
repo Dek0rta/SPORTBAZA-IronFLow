@@ -8,6 +8,9 @@ from bot.keyboards.callbacks import (
     AdminPanelCb,
     AnalyticsCb,
     ExportCb,
+    RecordsCb,
+    FormulaSelectCb,
+    QrCheckinCb,
 )
 from bot.keyboards.main_menu import athlete_main_menu, admin_main_menu, back_to_main
 from bot.keyboards.registration_kb import (
@@ -30,14 +33,22 @@ from bot.keyboards.admin_kb import (
     participant_list_kb,
     participant_detail_admin_kb,
     scoring_participant_list_kb,
+    formula_select_kb,
     PREDEFINED_CATEGORIES,
 )
 from bot.keyboards.scoring_kb import scoring_panel_kb, cancel_input_kb
+from bot.keyboards.records_kb import (
+    records_main_kb,
+    records_age_filter_kb,
+    records_weight_filter_kb,
+    records_back_kb,
+)
 
 __all__ = [
     # callbacks
     "MainMenuCb", "TournamentCb", "CategoryCb", "ParticipantCb",
     "AttemptCb", "ScoringNavCb", "AdminPanelCb", "AnalyticsCb", "ExportCb",
+    "RecordsCb", "FormulaSelectCb", "QrCheckinCb",
     # main menu
     "athlete_main_menu", "admin_main_menu", "back_to_main",
     # registration
@@ -49,7 +60,9 @@ __all__ = [
     "confirm_action_kb", "category_setup_kb",
     "description_input_kb", "announce_cancel_kb",
     "participant_list_kb", "participant_detail_admin_kb",
-    "scoring_participant_list_kb", "PREDEFINED_CATEGORIES",
+    "scoring_participant_list_kb", "formula_select_kb", "PREDEFINED_CATEGORIES",
     # scoring
     "scoring_panel_kb", "cancel_input_kb",
+    # records
+    "records_main_kb", "records_age_filter_kb", "records_weight_filter_kb", "records_back_kb",
 ]
