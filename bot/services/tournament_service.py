@@ -128,6 +128,19 @@ async def set_tournament_status(
     )
 
 
+async def set_tournament_formula(
+    session: AsyncSession,
+    tournament_id: int,
+    formula: str,
+) -> None:
+    """Update the scoring formula for a tournament."""
+    await session.execute(
+        update(Tournament)
+        .where(Tournament.id == tournament_id)
+        .values(scoring_formula=formula)
+    )
+
+
 async def delete_tournament(session: AsyncSession, tournament_id: int) -> None:
     # Bulk ORM delete bypasses cascade — delete manually in FK order.
     participant_ids_result = await session.execute(
@@ -191,6 +204,7 @@ async def register_participant(
     bodyweight: float,
     gender: str,
     age_category: Optional[str] = None,
+    qr_token: Optional[str] = None,
 ) -> Tuple[Optional[Participant], str]:
     """
     Register athlete for a tournament.
@@ -219,6 +233,7 @@ async def register_participant(
         gender=gender,
         age_category=age_category,
         category_id=category.id if category else None,
+        qr_token=qr_token,
     )
     session.add(p)
     await session.flush()

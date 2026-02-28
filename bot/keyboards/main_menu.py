@@ -18,6 +18,9 @@ def athlete_main_menu() -> InlineKeyboardMarkup:
     builder.row(
         InlineKeyboardButton(text="🏆 Текущие турниры",       callback_data=MainMenuCb(action="tournaments_public").pack()),
     )
+    builder.row(
+        InlineKeyboardButton(text="🥇 База рекордов",         callback_data=MainMenuCb(action="records").pack()),
+    )
     return builder.as_markup()
 
 
@@ -37,6 +40,9 @@ def admin_main_menu() -> InlineKeyboardMarkup:
     )
     builder.row(
         InlineKeyboardButton(text="👥 Участники",             callback_data=AdminPanelCb(action="participants").pack()),
+    )
+    builder.row(
+        InlineKeyboardButton(text="📷 QR Check-in",           callback_data=AdminPanelCb(action="qr_scan").pack()),
     )
     return builder.as_markup()
 

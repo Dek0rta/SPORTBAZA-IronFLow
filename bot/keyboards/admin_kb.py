@@ -12,8 +12,9 @@ from bot.keyboards.callbacks import (
     CategoryCb,
     ParticipantCb,
     MainMenuCb,
+    FormulaSelectCb,
 )
-from bot.models.models import Tournament, TournamentStatus, Participant, ParticipantStatus
+from bot.models.models import Tournament, TournamentStatus, Participant, ParticipantStatus, FormulaType
 
 # ── Tournament lists ──────────────────────────────────────────────────────────
 
@@ -125,7 +126,39 @@ def tournament_detail_admin_kb(t: Tournament) -> InlineKeyboardMarkup:
             )
         )
 
+    # Formula selector — available for all statuses except DRAFT
+    if t.status != TournamentStatus.DRAFT:
+        formula_label = FormulaType.LABELS.get(t.scoring_formula, t.scoring_formula)
+        builder.row(
+            InlineKeyboardButton(
+                text=f"🔢 Формула: {formula_label}",
+                callback_data=FormulaSelectCb(action="toggle", tid=t.id).pack(),
+            )
+        )
+
     builder.row(InlineKeyboardButton(text="🔙 К списку", callback_data=TournamentCb(action="list").pack()))
+    return builder.as_markup()
+
+
+def formula_select_kb(tournament_id: int, current_formula: str) -> InlineKeyboardMarkup:
+    """Keyboard to pick the active scoring formula for a tournament."""
+    builder = InlineKeyboardBuilder()
+    for formula, label in FormulaType.LABELS.items():
+        prefix = "✅ " if formula == current_formula else ""
+        builder.row(
+            InlineKeyboardButton(
+                text=f"{prefix}{label}",
+                callback_data=FormulaSelectCb(
+                    action="set", tid=tournament_id, formula=formula
+                ).pack(),
+            )
+        )
+    builder.row(
+        InlineKeyboardButton(
+            text="🔙 Назад к турниру",
+            callback_data=TournamentCb(action="view", tid=tournament_id).pack(),
+        )
+    )
     return builder.as_markup()
 
 

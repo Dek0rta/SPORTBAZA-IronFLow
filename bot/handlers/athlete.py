@@ -13,8 +13,9 @@ from bot.keyboards import (
     my_registrations_kb, participant_profile_kb, withdraw_confirm_kb,
     athlete_main_menu,
 )
-from bot.models.models import TournamentStatus, ParticipantStatus
+from bot.models.models import TournamentStatus, ParticipantStatus, FormulaType
 from bot.services import get_user, get_athlete_registrations, get_participant, update_participant_status
+from bot.services.formula_service import get_full_performance_deltas, world_percentile
 
 logger = logging.getLogger(__name__)
 router = Router(name="athlete")
@@ -63,7 +64,25 @@ async def cq_participant_profile(
         await callback.answer("Заявка не найдена.", show_alert=True)
         return
 
-    text = _build_profile_card(p)
+    # Performance delta (shown only for finished tournaments)
+    delta_lines: list[str] = []
+    if p.tournament.status == TournamentStatus.FINISHED:
+        try:
+            delta_lines = await get_full_performance_deltas(session, p.user.id)
+        except Exception:
+            pass
+
+    # World percentile estimate (for finished tournaments with a valid total)
+    percentile_line = ""
+    if p.tournament.status == TournamentStatus.FINISHED and p.category:
+        lift_types = p.tournament.lift_types
+        total = p.total(lift_types)
+        if total is not None:
+            pct = world_percentile(p.gender, p.category.name, total)
+            if pct is not None:
+                percentile_line = f"\n🌍 *Мировой рейтинг:* Вы сильнее, чем *{pct}%* атлетов в вашей категории"
+
+    text = _build_profile_card(p, delta_lines, percentile_line)
     can_withdraw = p.tournament.status in (
         TournamentStatus.REGISTRATION,
         TournamentStatus.DRAFT,
@@ -87,7 +106,7 @@ async def cq_participant_profile(
     await callback.answer()
 
 
-def _build_profile_card(p) -> str:
+def _build_profile_card(p, delta_lines: list = None, percentile_line: str = "") -> str:
     """Render a rich athlete profile summary card."""
     cat       = p.category.display_name if p.category else "не назначена"
     lot       = f"`#{p.lot_number}`" if p.lot_number else "_не назначен_"
@@ -128,6 +147,12 @@ def _build_profile_card(p) -> str:
         total = p.total(lift_types)
         if total is not None:
             lines.append(f"\n💪 *Тоталл: `{total:g} кг`*")
+
+    if percentile_line:
+        lines.append(percentile_line)
+
+    if delta_lines:
+        lines += ["", "━━━ Прогресс ━━━"] + delta_lines
 
     return "\n".join(lines)
 
