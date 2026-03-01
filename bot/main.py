@@ -56,12 +56,12 @@ async def create_tables() -> None:
             "ALTER TABLE participants ADD COLUMN qr_token VARCHAR(36)",
             "ALTER TABLE participants ADD COLUMN checked_in BOOLEAN DEFAULT FALSE",
         ]
-        async with engine.begin() as conn:
-            for sql in _migrations:
-                try:
+        for sql in _migrations:
+            try:
+                async with engine.begin() as conn:
                     await conn.execute(text(sql))
-                except Exception:
-                    pass  # Column already exists
+            except Exception:
+                pass  # Column already exists
 
         logger.info("Database tables ready.")
     except Exception as e:
