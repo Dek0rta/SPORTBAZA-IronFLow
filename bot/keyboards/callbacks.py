@@ -2,6 +2,8 @@
 Centralized CallbackData factories.
 Telegram limits callback_data to 64 bytes — all prefixes are kept short.
 """
+from typing import Optional
+
 from aiogram.filters.callback_data import CallbackData
 
 
@@ -64,7 +66,7 @@ class RecordsCb(CallbackData, prefix="rcd"):
 class FormulaSelectCb(CallbackData, prefix="frm"):
     action: str           # set | toggle
     tid: int = 0
-    formula: str = ""
+    formula: Optional[str] = None
 
 
 class QrCheckinCb(CallbackData, prefix="qrc"):
