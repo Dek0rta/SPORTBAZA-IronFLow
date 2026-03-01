@@ -111,25 +111,24 @@ def ipf_gl(bw: float, gender: str, total: float, event: str = "SBD") -> float:
     Coefficients for raw (Classic) competition.
     event: "SBD" for classic powerlifting, "BP" for bench press only.
 
-    Formula: score = 100 / (A − B·exp(−c·BW)) × (total − (d·BW² + e·BW − f))
+    Formula: score = 100 × total / (A − B·exp(−C·BW))
     """
     if event in ("SBD", "PP", "DL"):
         if gender == "M":
-            A, B, c, d, e, f = 1199.72839, 1025.18162, 0.00921, 0.002908,  52.206859, 17.012
+            A, B, C = 1199.72839, 1025.18162, 0.00921
         else:
-            A, B, c, d, e, f =  610.32796, 1045.59282, 0.03048, 0.011900,  33.717829, 10.076
+            A, B, C =  610.32796, 1045.59282, 0.03048
     else:  # BP
         if gender == "M":
-            A, B, c, d, e, f =  320.98041,  281.40258, 0.01008, 0.002978,  14.929660,  4.093
+            A, B, C =  320.98041,  281.40258, 0.01008
         else:
-            A, B, c, d, e, f =  142.40398,  442.52671, 0.04724, 0.009475,  11.645200,  3.738
+            A, B, C =  142.40398,  442.52671, 0.04724
 
     bw = max(40.0, min(bw, 220.0))
-    cf = A - B * math.exp(-c * bw)
+    cf = A - B * math.exp(-C * bw)
     if cf <= 0:
         return 0.0
-    adjustment = d * bw**2 + e * bw - f
-    score = (100.0 / cf) * (total - adjustment)
+    score = 100.0 * total / cf
     return round(max(score, 0.0), 2)
 
 
@@ -223,8 +222,7 @@ async def get_performance_delta(
     delta_pct      = (delta_kg / previous_best * 100) if previous_best else 0.0
     count          = len(relevant)
 
-    from bot.models.models import TournamentType as TT
-    lift_label = TT.LIFT_LABELS.get(lift_type, lift_type)
+    lift_label = TournamentType.LIFT_LABELS.get(lift_type, lift_type)
 
     sign = "+" if delta_kg >= 0 else ""
     return (

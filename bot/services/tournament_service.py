@@ -7,7 +7,7 @@ pure async functions (no class coupling) for easy unit testing.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 
 from sqlalchemy import select, update, delete
@@ -381,7 +381,7 @@ async def judge_attempt(
     attempt = res.scalar_one_or_none()
     if attempt:
         attempt.result    = result
-        attempt.judged_at = datetime.utcnow()
+        attempt.judged_at = datetime.now(timezone.utc)
     return attempt
 
 

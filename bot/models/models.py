@@ -357,7 +357,6 @@ class PlatformRecord(Base):
 
     @property
     def lift_label(self) -> str:
-        from bot.models.models import RecordLiftType
         return RecordLiftType.LABELS.get(self.lift_type, self.lift_type)
 
     @property
