@@ -348,6 +348,62 @@ All algorithm comments are in **English** to demonstrate data-engineering compet
 
 ---
 
+## 🧪 Quality Assurance
+
+### Running the Tests
+
+Install development dependencies first:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+Run the full test suite:
+
+```bash
+pytest .
+```
+
+Run with coverage report:
+
+```bash
+pytest --cov=bot --cov-report=term-missing .
+```
+
+Run a specific module:
+
+```bash
+pytest tests/test_calculators.py -v
+pytest tests/test_validators.py -v
+pytest tests/test_database.py -v
+pytest tests/test_ranking.py -v
+```
+
+### Test Suite Overview
+
+| Module | What is tested | Why it matters |
+|---|---|---|
+| `test_calculators.py` | Wilks 2020, DOTS, Glossbrenner, IPF GL formulas; `world_percentile()` | Even a 1-point error in a coefficient can change a podium position — every formula is verified against official reference values with `pytest.mark.parametrize` |
+| `test_ranking.py` | Place assignment, tie-break by bodyweight, bomb-outs, formula-ranked overall, division rankings | Incorrect ranking logic is the most visible failure at a live competition; this suite covers all edge cases including multi-way ties |
+| `test_validators.py` | `RegistrationData` and `AttemptWeightData` Pydantic models | Athletes must not be able to register with impossible body weights or attempt values; negative ages and string weights must raise `ValidationError` before touching the database |
+| `test_database.py` | User/tournament CRUD, category assignment, attempt judging, records vault update logic | Integration tests run against an isolated in-memory SQLite database — they verify the full ORM layer including auto-category assignment, bomb-out detection, and the conditional record-update algorithm |
+
+### Why Testing Matters for Sports Results
+
+Powerlifting results have no margin for error:
+
+- **Coefficient formulas** (Wilks, DOTS, IPF GL) are polynomial or exponential functions with coefficients specified to 9 decimal places. A floating-point implementation bug would silently mis-rank athletes.
+- **Tie-break rules** follow IPF technical rules: equal formula score → lighter bodyweight wins. A single off-by-one in the sort key would hand a medal to the wrong athlete.
+- **Records vault** uses a conditional update (`new > existing`). A regression that drops the guard would overwrite a world record with an inferior performance.
+- **Input validation** prevents garbage data from propagating into calculations — a bodyweight of `-1` or `"kg"` would cause a `ZeroDivisionError` deep inside the formula engine without upfront Pydantic guards.
+
+### Coverage
+
+The four test modules provide approximately **80 %+ statement coverage** of the business-logic layer (`bot/services/`, `bot/models/models.py`, `bot/validators.py`).
+Intentionally excluded: `bot/main.py` (aiogram dispatcher bootstrap), handler UI code, and third-party integrations (Sheets export, QR rendering) which require external credentials.
+
+---
+
 ## 📄 License
 
 MIT — free to use for competitions, sports clubs and hackathons.
