@@ -225,11 +225,21 @@ async def get_leaderboard(req: web.Request):
 
 # ── GET /api/profile ──────────────────────────────────────────────────────────
 
+_DEFAULT_PROFILE = {
+    "mmr": 500, "rank": "Iron III", "tier": "iron",
+    "mmr_start": 0, "mmr_next": 650,
+    "wins": 0, "losses": 0, "tournaments": 0,
+}
+
+
 @routes.get("/api/profile")
 async def get_profile(req: web.Request):
     user_data = parse_tg_user(_init_data(req))
     if not user_data:
-        raise web.HTTPUnauthorized()
+        return web.json_response({
+            **_DEFAULT_PROFILE,
+            "achievements": ach_module.compute([], [], 0),
+        })
 
     tg_id = user_data["id"]
 
@@ -241,9 +251,7 @@ async def get_profile(req: web.Request):
 
         if not user:
             return web.json_response({
-                "mmr": 500, "rank": "Iron III", "tier": "iron",
-                "mmr_start": 0, "mmr_next": 650,
-                "wins": 0, "losses": 0, "tournaments": 0,
+                **_DEFAULT_PROFILE,
                 "achievements": ach_module.compute([], [], 0),
             })
 
@@ -306,7 +314,7 @@ async def get_profile(req: web.Request):
 async def get_my_registrations(req: web.Request):
     user_data = parse_tg_user(_init_data(req))
     if not user_data:
-        raise web.HTTPUnauthorized()
+        return web.json_response([])
 
     tg_id = user_data["id"]
 
