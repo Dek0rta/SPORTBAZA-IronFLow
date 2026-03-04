@@ -1,1 +1,1 @@
-export type Tab = 'dashboard' | 'workout' | 'stats'
+export type Tab = 'profile' | 'leaderboard' | 'competitions'
