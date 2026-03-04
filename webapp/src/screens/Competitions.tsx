@@ -29,8 +29,9 @@ export function Competitions() {
   const [myRegs, setMyRegs]     = useState<MyRegistration[]>([])
   const [me, setMe]             = useState<Me | null>(null)
   const [loading, setLoading]   = useState(true)
-  const [selected, setSelected] = useState<MyRegistration | null>(null)
-  const [deleting, setDeleting] = useState<number | null>(null)
+  const [selected, setSelected]         = useState<MyRegistration | null>(null)
+  const [selectedT, setSelectedT]       = useState<ApiTournament | null>(null)
+  const [deleting, setDeleting]         = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -106,7 +107,7 @@ export function Competitions() {
                   ? <Empty label="Нет активных турниров" />
                   : upcoming.map((t, i) => (
                     <TournamentCard key={t.id} t={t} index={i}
-                      onDetail={() => haptic.impact('light')}
+                      onDetail={() => { haptic.impact('light'); setSelectedT(t) }}
                     />
                   ))
                 }
@@ -120,7 +121,7 @@ export function Competitions() {
                   ? <Empty label="История турниров пуста" />
                   : history.map((t, i) => (
                     <TournamentCard key={t.id} t={t} index={i}
-                      onDetail={() => haptic.impact('light')}
+                      onDetail={() => { haptic.impact('light'); setSelectedT(t) }}
                       isAdmin={me?.is_admin ?? false}
                       onDelete={() => handleDelete(t.id)}
                       deleting={deleting === t.id}
@@ -178,6 +179,47 @@ export function Competitions() {
           </AnimatePresence>
         )}
       </div>
+
+      {/* ── Tournament Detail BottomSheet ─────────────────────── */}
+      <BottomSheet
+        isOpen={selectedT !== null}
+        onClose={() => setSelectedT(null)}
+        title={selectedT?.name}
+      >
+        {selectedT && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">{selectedT.status_emoji}</span>
+              <div>
+                <p className="text-white font-bold">{selectedT.name}</p>
+                <p className="text-xs font-bold" style={{ color: TOURNAMENT_STATUS_CFG[selectedT.status]?.color ?? '#6b7280' }}>
+                  {TOURNAMENT_STATUS_CFG[selectedT.status]?.label ?? selectedT.status} · {selectedT.type_label}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <InfoRow icon={Trophy}   text={`Формула: ${selectedT.formula_label}`} />
+              <InfoRow icon={Users}    text={`Участников: ${selectedT.participants_count}`} />
+              {selectedT.description && (
+                <InfoRow icon={Calendar} text={selectedT.description} />
+              )}
+            </div>
+            <div
+              className="rounded-2xl p-3 text-center text-sm font-bold"
+              style={{
+                color: TOURNAMENT_STATUS_CFG[selectedT.status]?.color ?? '#6b7280',
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${TOURNAMENT_STATUS_CFG[selectedT.status]?.color ?? '#6b7280'}33`,
+              }}
+            >
+              {selectedT.status === 'registration' && '📋 Регистрация открыта — запишись через бота'}
+              {selectedT.status === 'active'       && '🔴 Турнир идёт прямо сейчас'}
+              {selectedT.status === 'finished'     && '🏆 Турнир завершён'}
+              {selectedT.status === 'draft'        && '📝 Турнир готовится'}
+            </div>
+          </div>
+        )}
+      </BottomSheet>
 
       {/* ── Registration BottomSheet ──────────────────────────── */}
       <BottomSheet
