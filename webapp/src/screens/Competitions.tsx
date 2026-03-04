@@ -1,16 +1,71 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MapPin, Calendar, Trophy, Users, QrCode, ChevronRight } from 'lucide-react'
+import { MapPin, Calendar, Trophy, Users, QrCode, ChevronRight, Trash2, RefreshCw } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTelegram } from '../hooks/useTelegram'
 import { BottomSheet } from '../components/BottomSheet'
-import { mockTournaments, mockMyRegistrations, STATUS_CONFIG } from '../data/mock'
-import type { MyRegistration } from '../data/mock'
+import { api } from '../services/api'
+import type { ApiTournament, MyRegistration, Me } from '../services/api'
+
+const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  approved:   { label: 'Одобрена',        color: '#39ff14', bg: 'rgba(57,255,20,0.1)'   },
+  registered: { label: 'Зарегистрирован', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
+  confirmed:  { label: 'Подтверждена',    color: '#39ff14', bg: 'rgba(57,255,20,0.1)'   },
+  pending:    { label: 'Ожидает взноса',  color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
+  rejected:   { label: 'Отклонена',       color: '#ef4444', bg: 'rgba(239,68,68,0.12)'  },
+}
+
+const TOURNAMENT_STATUS_CFG: Record<string, { label: string; color: string }> = {
+  draft:        { label: 'Черновик',      color: '#6b7280' },
+  registration: { label: 'Регистрация',   color: '#3b82f6' },
+  active:       { label: 'Идёт',          color: '#f97316' },
+  finished:     { label: 'Завершён',      color: '#39ff14' },
+}
 
 export function Competitions() {
-  const { haptic } = useTelegram()
-  const [tab, setTab]           = useState<'upcoming' | 'mine'>('upcoming')
+  const { haptic, tg } = useTelegram()
+  const [tab, setTab]           = useState<'upcoming' | 'history' | 'mine'>('upcoming')
+  const [tournaments, setTournaments] = useState<ApiTournament[]>([])
+  const [myRegs, setMyRegs]     = useState<MyRegistration[]>([])
+  const [me, setMe]             = useState<Me | null>(null)
+  const [loading, setLoading]   = useState(true)
   const [selected, setSelected] = useState<MyRegistration | null>(null)
+  const [deleting, setDeleting] = useState<number | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [ts, meData] = await Promise.all([api.tournaments(), api.me()])
+      setTournaments(ts)
+      setMe(meData)
+      if (meData.authenticated) {
+        const regs = await api.myRegistrations().catch(() => [])
+        setMyRegs(regs)
+      }
+    } catch {
+      // API not configured — empty state
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const upcoming = tournaments.filter(t => t.status === 'registration' || t.status === 'active')
+  const history  = tournaments.filter(t => t.status === 'finished')
+
+  const handleDelete = async (id: number) => {
+    haptic.impact('medium')
+    setDeleting(id)
+    try {
+      await api.deleteTournament(id)
+      setTournaments(prev => prev.filter(t => t.id !== id))
+    } catch {
+      haptic.error()
+    } finally {
+      setDeleting(null)
+    }
+  }
 
   return (
     <div className="h-full overflow-y-auto overscroll-contain">
@@ -19,128 +74,112 @@ export function Competitions() {
         <h1 className="text-white text-2xl font-bold mb-4">Соревнования</h1>
 
         {/* Tab switcher */}
-        <div className="grid grid-cols-2 gap-1 bg-white/5 rounded-2xl p-1 mb-5">
-          {(['upcoming', 'mine'] as const).map(id => (
+        <div className="grid grid-cols-3 gap-1 bg-white/5 rounded-2xl p-1 mb-5">
+          {([
+            ['upcoming', 'Предстоящие'],
+            ['history',  'История'],
+            ['mine',     'Мои заявки'],
+          ] as const).map(([id, label]) => (
             <button
               key={id}
               onClick={() => { haptic.impact('light'); setTab(id) }}
-              className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              className={`py-2 rounded-xl text-xs font-semibold transition-all ${
                 tab === id ? 'bg-neon-green text-black' : 'text-gray-400'
               }`}
             >
-              {id === 'upcoming' ? 'Предстоящие' : 'Мои заявки'}
+              {label}
             </button>
           ))}
         </div>
 
-        <AnimatePresence mode="wait">
+        {loading ? (
+          <div className="flex justify-center pt-12">
+            <RefreshCw size={28} className="text-neon-green animate-spin" />
+          </div>
+        ) : (
+          <AnimatePresence mode="wait">
 
-          {/* ── Upcoming tournaments ──────────────────────────── */}
-          {tab === 'upcoming' && (
-            <motion.div
-              key="upcoming"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-4"
-            >
-              {mockTournaments.map((t, i) => (
-                <motion.div
-                  key={t.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.06 }}
-                  className="glass-card space-y-3"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-white font-bold text-sm leading-tight flex-1">{t.name}</h3>
-                    <span className="text-neon-green font-black text-sm shrink-0">{t.prize}</span>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <InfoRow icon={Calendar} text={t.date} />
-                    <InfoRow icon={MapPin}   text={t.location} />
-                    <InfoRow icon={Trophy}   text={t.discipline} />
-                    <InfoRow
-                      icon={Users}
-                      text={`Осталось мест: ${t.slotsLeft} из ${t.slotsTotal}`}
-                      accent={t.slotsLeft <= 5}
+            {/* ── Upcoming ──────────────────────────────────────── */}
+            {tab === 'upcoming' && (
+              <TabContent key="upcoming">
+                {upcoming.length === 0
+                  ? <Empty label="Нет активных турниров" />
+                  : upcoming.map((t, i) => (
+                    <TournamentCard key={t.id} t={t} index={i}
+                      onDetail={() => haptic.impact('light')}
                     />
-                  </div>
+                  ))
+                }
+              </TabContent>
+            )}
 
-                  <button
-                    onClick={() => haptic.impact('light')}
-                    className="w-full h-10 bg-white/5 border border-white/10 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-transform"
-                  >
-                    Подробнее <ChevronRight size={14} />
-                  </button>
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
+            {/* ── History ───────────────────────────────────────── */}
+            {tab === 'history' && (
+              <TabContent key="history">
+                {history.length === 0
+                  ? <Empty label="История турниров пуста" />
+                  : history.map((t, i) => (
+                    <TournamentCard key={t.id} t={t} index={i}
+                      onDetail={() => haptic.impact('light')}
+                      isAdmin={me?.is_admin ?? false}
+                      onDelete={() => handleDelete(t.id)}
+                      deleting={deleting === t.id}
+                    />
+                  ))
+                }
+              </TabContent>
+            )}
 
-          {/* ── My registrations ─────────────────────────────── */}
-          {tab === 'mine' && (
-            <motion.div
-              key="mine"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-4"
-            >
-              {mockMyRegistrations.length === 0 ? (
-                <div className="text-center py-16">
-                  <Trophy size={48} className="mx-auto mb-3 text-gray-700" />
-                  <p className="text-gray-500">Нет активных заявок</p>
-                </div>
-              ) : (
-                mockMyRegistrations.map((reg, i) => {
-                  const sc = STATUS_CONFIG[reg.status]
-                  return (
-                    <motion.button
-                      key={reg.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.06 }}
-                      onClick={() => { haptic.impact('light'); setSelected(reg) }}
-                      className="w-full glass-card text-left space-y-3 active:scale-[0.98] transition-transform"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-white font-bold text-sm leading-tight flex-1">{reg.name}</h3>
-                        <span
-                          className="text-[11px] font-black px-2.5 py-1 rounded-full shrink-0"
-                          style={{ color: sc.color, background: sc.bg }}
-                        >
-                          {sc.label}
-                        </span>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <InfoRow icon={Calendar} text={reg.date} />
-                        <InfoRow icon={MapPin}   text={reg.location} />
-                        <InfoRow icon={Trophy}   text={`Дисциплина: ${reg.discipline}`} />
-                        <InfoRow icon={Users}    text={`Весовая категория: ${reg.weightClass}`} />
-                      </div>
-
-                      <div className="flex items-center justify-between pt-1 border-t border-white/5">
-                        <span className="text-gray-500 text-xs">QR-билет и правила</span>
-                        <div className="flex items-center gap-1 text-neon-green text-xs font-semibold">
-                          <QrCode size={13} /> Открыть
+            {/* ── My registrations ──────────────────────────────── */}
+            {tab === 'mine' && (
+              <TabContent key="mine">
+                {myRegs.length === 0
+                  ? <Empty label={me?.authenticated ? 'Нет активных заявок' : 'Войди через Telegram'} />
+                  : myRegs.map((reg, i) => {
+                    const sc = STATUS_CFG[reg.registration_status] ?? STATUS_CFG.registered
+                    return (
+                      <motion.button
+                        key={reg.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.06 }}
+                        onClick={() => { haptic.impact('light'); setSelected(reg) }}
+                        className="w-full glass-card text-left space-y-3 active:scale-[0.98] transition-transform"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="text-white font-bold text-sm leading-tight flex-1">{reg.name}</h3>
+                          <span
+                            className="text-[11px] font-black px-2.5 py-1 rounded-full shrink-0"
+                            style={{ color: sc.color, background: sc.bg }}
+                          >
+                            {sc.label}
+                          </span>
                         </div>
-                      </div>
-                    </motion.button>
-                  )
-                })
-              )}
-            </motion.div>
-          )}
+                        <div className="space-y-1.5">
+                          <InfoRow icon={Trophy}   text={`Дисциплина: ${reg.discipline}`} />
+                          <InfoRow icon={Users}    text={`Весовая: ${reg.weight_class}`} />
+                          <InfoRow icon={Calendar} text={`Статус турнира: ${TOURNAMENT_STATUS_CFG[reg.tournament_status]?.label ?? reg.tournament_status}`} />
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                          <span className="text-gray-500 text-xs">
+                            {reg.checked_in ? '✅ Чек-ин пройден' : 'QR-билет и правила'}
+                          </span>
+                          <div className="flex items-center gap-1 text-neon-green text-xs font-semibold">
+                            <QrCode size={13} /> Открыть
+                          </div>
+                        </div>
+                      </motion.button>
+                    )
+                  })
+                }
+              </TabContent>
+            )}
 
-        </AnimatePresence>
+          </AnimatePresence>
+        )}
       </div>
 
-      {/* ── Registration detail BottomSheet ──────────────────── */}
+      {/* ── Registration BottomSheet ──────────────────────────── */}
       <BottomSheet
         isOpen={selected !== null}
         onClose={() => setSelected(null)}
@@ -154,33 +193,29 @@ export function Competitions() {
                 <QrCode size={128} className="text-black" />
               </div>
               <p className="text-gray-500 text-xs text-center">
-                Токен:{' '}
-                <span className="text-gray-300 font-mono">{selected.qrToken}</span>
+                {selected.qr_token
+                  ? <>Токен: <span className="text-gray-300 font-mono">{selected.qr_token}</span></>
+                  : 'QR-код появится после подтверждения заявки'
+                }
               </p>
             </div>
 
             {/* Details */}
             <div className="space-y-2">
               <InfoRow icon={Trophy}   text={`Дисциплина: ${selected.discipline}`} />
-              <InfoRow icon={Users}    text={`Весовая категория: ${selected.weightClass}`} />
-              <InfoRow icon={Calendar} text={selected.date} />
-              <InfoRow icon={MapPin}   text={selected.location} />
+              <InfoRow icon={Users}    text={`Весовая категория: ${selected.weight_class}`} />
+              <InfoRow icon={Calendar} text={`Статус: ${TOURNAMENT_STATUS_CFG[selected.tournament_status]?.label ?? selected.tournament_status}`} />
             </div>
 
-            {/* Rules */}
-            <div>
-              <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-2">
-                Правила ивента
-              </p>
-              <div className="space-y-2">
-                {selected.rules.map((rule, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="text-neon-green font-bold text-sm shrink-0 mt-0.5">·</span>
-                    <span className="text-gray-300 text-sm">{rule}</span>
-                  </div>
-                ))}
+            {/* Description */}
+            {selected.description && (
+              <div>
+                <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-2">
+                  Описание
+                </p>
+                <p className="text-gray-300 text-sm leading-relaxed">{selected.description}</p>
               </div>
-            </div>
+            )}
           </div>
         )}
       </BottomSheet>
@@ -188,17 +223,100 @@ export function Competitions() {
   )
 }
 
-function InfoRow({
-  icon: Icon, text, accent,
+// ── Sub-components ──────────────────────────────────────────────────────────
+
+function TabContent({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="space-y-4"
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+function TournamentCard({
+  t, index, onDetail, isAdmin, onDelete, deleting,
 }: {
-  icon: LucideIcon
-  text: string
-  accent?: boolean
+  t: ApiTournament
+  index: number
+  onDetail: () => void
+  isAdmin?: boolean
+  onDelete?: () => void
+  deleting?: boolean
 }) {
+  const stc = TOURNAMENT_STATUS_CFG[t.status]
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.06 }}
+      className="glass-card space-y-3"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-white font-bold text-sm leading-tight">{t.name}</h3>
+          <span className="text-[10px] font-bold" style={{ color: stc?.color ?? '#6b7280' }}>
+            {t.status_emoji} {stc?.label ?? t.status} · {t.type_label}
+          </span>
+        </div>
+        <span className="text-neon-green font-black text-xs shrink-0">
+          {t.participants_count} уч.
+        </span>
+      </div>
+
+      <div className="space-y-1.5">
+        <InfoRow icon={Trophy}   text={`Формула: ${t.formula_label}`} />
+        {t.description && (
+          <InfoRow icon={Calendar} text={t.description} />
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={onDetail}
+          className="flex-1 h-10 bg-white/5 border border-white/10 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-transform"
+        >
+          Подробнее <ChevronRight size={14} />
+        </button>
+
+        {isAdmin && onDelete && t.status === 'finished' && (
+          <button
+            onClick={onDelete}
+            disabled={deleting}
+            className="w-10 h-10 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-transform disabled:opacity-40"
+          >
+            {deleting
+              ? <RefreshCw size={16} className="text-red-400 animate-spin" />
+              : <Trash2 size={16} className="text-red-400" />
+            }
+          </button>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+function InfoRow({ icon: Icon, text, accent }: { icon: LucideIcon; text: string; accent?: boolean }) {
   return (
     <div className="flex items-center gap-2 text-xs">
-      <Icon size={13} className={accent ? 'text-orange-400 shrink-0' : 'text-gray-500 shrink-0'} />
-      <span className={accent ? 'text-orange-400 font-semibold' : 'text-gray-400'}>{text}</span>
+      <Icon size={13} className={`shrink-0 ${accent ? 'text-orange-400' : 'text-gray-500'}`} />
+      <span className={`${accent ? 'text-orange-400 font-semibold' : 'text-gray-400'} line-clamp-1`}>
+        {text}
+      </span>
+    </div>
+  )
+}
+
+function Empty({ label }: { label: string }) {
+  return (
+    <div className="text-center py-16">
+      <Trophy size={48} className="mx-auto mb-3 text-gray-700" />
+      <p className="text-gray-500 text-sm">{label}</p>
     </div>
   )
 }
