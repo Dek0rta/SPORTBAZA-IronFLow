@@ -117,7 +117,7 @@ export function Leaderboard() {
                       {p.first_name[0]}
                     </div>
 
-                    {/* Name + rank */}
+                    {/* Name + username + rank */}
                     <div className="flex-1 min-w-0">
                       <p className={`font-semibold text-sm truncate ${isMe ? 'text-neon-green' : 'text-white'}`}>
                         {p.first_name}{p.last_name ? ` ${p.last_name}` : ''}{isMe ? ' (Вы)' : ''}
@@ -125,9 +125,20 @@ export function Leaderboard() {
                           <span className="ml-1 text-gray-600 text-[10px]">↗</span>
                         )}
                       </p>
-                      <span className="text-[10px] font-bold" style={{ color: rc.color }}>
-                        {p.rank}
-                      </span>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span className="text-[10px] font-bold" style={{ color: rc.color }}>
+                          {p.rank}
+                        </span>
+                        {p.username && (
+                          <>
+                            <span className="text-gray-700 text-[9px]">·</span>
+                            <span className="text-gray-500 text-[10px]">@{p.username}</span>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-gray-600 text-[10px]">🏆 {p.tournaments_count} турн.</span>
+                      </div>
                     </div>
 
                     {/* MMR */}
@@ -177,7 +188,10 @@ function MyRow({ entry, rank }: { entry: LeaderboardEntry; rank: number | string
         <p className="text-neon-green font-semibold text-sm truncate">
           {entry.first_name}{entry.last_name ? ` ${entry.last_name}` : ''} (Вы)
         </p>
-        <span className="text-[10px] font-bold" style={{ color: rc.color }}>{entry.rank}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-bold" style={{ color: rc.color }}>{entry.rank}</span>
+          <span className="text-gray-600 text-[9px]">· 🏆 {entry.tournaments_count} турн.</span>
+        </div>
       </div>
       <div className="text-right shrink-0">
         <p className="text-white font-black text-sm">{entry.mmr}</p>
