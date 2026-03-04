@@ -4,10 +4,10 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --frozen-lockfile
+RUN npm install
 
 COPY . .
-RUN npm run build
+RUN npx vite build
 
 # ── Stage 2: Serve ────────────────────────────────────────────────────────────
 FROM nginx:1.27-alpine
