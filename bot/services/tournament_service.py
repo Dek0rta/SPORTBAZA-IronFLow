@@ -381,7 +381,7 @@ async def judge_attempt(
     attempt = res.scalar_one_or_none()
     if attempt:
         attempt.result    = result
-        attempt.judged_at = datetime.now(timezone.utc)
+        attempt.judged_at = datetime.utcnow()
     return attempt
 
 
