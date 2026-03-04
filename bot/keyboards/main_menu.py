@@ -52,6 +52,13 @@ def admin_main_menu() -> InlineKeyboardMarkup:
     builder.row(
         InlineKeyboardButton(text="📷 QR Check-in",           callback_data=AdminPanelCb(action="qr_scan").pack()),
     )
+    if settings.WEBAPP_URL:
+        builder.row(
+            InlineKeyboardButton(
+                text="📱 IronFlow Трекер",
+                web_app=WebAppInfo(url=settings.WEBAPP_URL),
+            )
+        )
     return builder.as_markup()
 
 
