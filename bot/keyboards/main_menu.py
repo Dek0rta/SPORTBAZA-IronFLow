@@ -1,10 +1,11 @@
 """
 Main menu keyboards — context-aware (athlete vs. admin, tournament phase).
 """
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.keyboards.callbacks import MainMenuCb, AdminPanelCb
+from bot.config import settings
 
 
 def athlete_main_menu() -> InlineKeyboardMarkup:
@@ -21,6 +22,13 @@ def athlete_main_menu() -> InlineKeyboardMarkup:
     builder.row(
         InlineKeyboardButton(text="🥇 База рекордов",         callback_data=MainMenuCb(action="records").pack()),
     )
+    if settings.WEBAPP_URL:
+        builder.row(
+            InlineKeyboardButton(
+                text="📱 IronFlow Трекер",
+                web_app=WebAppInfo(url=settings.WEBAPP_URL),
+            )
+        )
     return builder.as_markup()
 
 
