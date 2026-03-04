@@ -38,6 +38,9 @@ class Settings(BaseSettings):
             return url.replace("://", "+asyncpg://", 1)
         return url
 
+    # ── WebApp ────────────────────────────────────────────────────────────────
+    WEBAPP_URL: Optional[str] = None          # e.g. https://your-webapp.vercel.app
+
     # ── Google Sheets (optional) ──────────────────────────────────────────────
     GOOGLE_CREDENTIALS_JSON: Optional[str] = None
     GOOGLE_SPREADSHEET_ID: Optional[str] = None
