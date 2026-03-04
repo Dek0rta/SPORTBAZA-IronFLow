@@ -3,7 +3,8 @@
  * Sends Telegram initData in X-Telegram-Init-Data header for auth.
  */
 
-const BASE = import.meta.env.VITE_API_URL ?? ''
+const BASE = (import.meta.env.VITE_API_URL as string)
+  || 'https://sportbaza-ironflow-production.up.railway.app'
 
 function initData(): string {
   return window.Telegram?.WebApp?.initData ?? ''
