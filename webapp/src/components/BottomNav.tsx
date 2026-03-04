@@ -1,9 +1,10 @@
+import type { FC } from 'react'
 import { motion } from 'framer-motion'
 import { LayoutDashboard, Dumbbell, BarChart2 } from 'lucide-react'
 import { useTelegram } from '../hooks/useTelegram'
 import type { Tab } from '../types'
 
-const tabs: { id: Tab; label: string; Icon: React.FC<{ size: number; className?: string }> }[] = [
+const tabs: { id: Tab; label: string; Icon: FC<{ size: number; className?: string }> }[] = [
   { id: 'dashboard', label: 'Главная',    Icon: LayoutDashboard },
   { id: 'workout',   label: 'Тренировка', Icon: Dumbbell },
   { id: 'stats',     label: 'Статистика', Icon: BarChart2 },
