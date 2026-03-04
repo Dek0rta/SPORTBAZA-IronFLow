@@ -4,6 +4,7 @@ Entry point: creates the bot, registers routers + middleware, handles graceful s
 """
 import asyncio
 import logging
+import os
 import signal
 import sys
 
@@ -125,6 +126,18 @@ async def main() -> None:
     logger.info("Starting SPORTBAZA Iron Flow bot…")
     await create_tables()
 
+    # ── REST API server (aiohttp, runs alongside the bot) ─────────────────────
+    from aiohttp import web as aiohttp_web
+    from bot.api.routes import routes as api_routes, cors_middleware
+
+    api_app = aiohttp_web.Application(middlewares=[cors_middleware])
+    api_app.add_routes(api_routes)
+    api_runner = aiohttp_web.AppRunner(api_app)
+    await api_runner.setup()
+    api_port = int(os.getenv("PORT", str(settings.API_PORT)))
+    await aiohttp_web.TCPSite(api_runner, "0.0.0.0", api_port).start()
+    logger.info("API server listening on port %d", api_port)
+
     bot = Bot(
         token=settings.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
@@ -156,6 +169,7 @@ async def main() -> None:
         )
     finally:
         logger.info("Shutting down…")
+        await api_runner.cleanup()
         await bot.session.close()
         await engine.dispose()
         logger.info("Shutdown complete.")

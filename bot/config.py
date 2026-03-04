@@ -39,7 +39,8 @@ class Settings(BaseSettings):
         return url
 
     # ── WebApp ────────────────────────────────────────────────────────────────
-    WEBAPP_URL: Optional[str] = None          # e.g. https://your-webapp.vercel.app
+    WEBAPP_URL: Optional[str] = None          # e.g. https://your-webapp.railway.app
+    API_PORT:   int           = 8080          # HTTP port for the REST API
 
     # ── Google Sheets (optional) ──────────────────────────────────────────────
     GOOGLE_CREDENTIALS_JSON: Optional[str] = None
