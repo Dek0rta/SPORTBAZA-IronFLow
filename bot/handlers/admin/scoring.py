@@ -188,7 +188,7 @@ async def cq_set_weight_start(
         f"📍 {lift_label} — подход №{num}\n\n"
         f"Введите вес в кг (например: `185.5`):",
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=cancel_input_kb(pid, 0),
+        reply_markup=cancel_input_kb(pid, tid),
     )
     await callback.answer()
 
@@ -274,7 +274,13 @@ async def cq_judge_attempt(
 
     # Reload participant with fresh attempts
     p = await get_participant(session, callback_data.pid)
+    if not p:
+        await callback.answer("Участник не найден.", show_alert=True)
+        return
     t = await get_tournament(session, p.tournament_id, load_relations=False)
+    if not t:
+        await callback.answer("Турнир не найден.", show_alert=True)
+        return
 
     # Notify athlete asynchronously
     try:
@@ -356,7 +362,12 @@ async def _refresh_scoring_card_in_place(callback, p, t, session) -> None:
         prev_pid=prev_pid,
         next_pid=next_pid,
     )
-    await callback.message.edit_text(
-        text, parse_mode=ParseMode.MARKDOWN, reply_markup=kb
-    )
+    try:
+        await callback.message.edit_text(
+            text, parse_mode=ParseMode.MARKDOWN, reply_markup=kb
+        )
+    except Exception:
+        await callback.message.answer(
+            text, parse_mode=ParseMode.MARKDOWN, reply_markup=kb
+        )
     await callback.answer()
