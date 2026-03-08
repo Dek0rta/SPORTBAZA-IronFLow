@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Trophy, ChevronRight, RefreshCw, Share2, Pencil, TrendingUp, Check, X } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Trophy, RefreshCw, Share2, Pencil, TrendingUp, Check, X, CalendarDays } from 'lucide-react'
 import { useTelegram } from '../hooks/useTelegram'
 import { BottomSheet } from '../components/BottomSheet'
 import { RANK_CONFIG, RARITY_CONFIG } from '../data/mock'
@@ -58,7 +58,6 @@ export function Profile() {
   const mmrStart    = profile?.mmr_start  ?? 0
   const mmrNext     = profile?.mmr_next   ?? 650
   const wins        = profile?.wins       ?? 0
-  const losses      = profile?.losses     ?? 0
   const tournaments = profile?.tournaments ?? 0
   const achievements = profile?.achievements ?? []
 
@@ -108,11 +107,10 @@ export function Profile() {
     haptic.impact('medium')
     const canvas = canvasRef.current
     if (!canvas) return
-
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const W = 400, H = 220
+    const W = 400, H = 210
     canvas.width = W
     canvas.height = H
 
@@ -120,81 +118,88 @@ export function Profile() {
     ctx.fillStyle = '#0f172a'
     ctx.fillRect(0, 0, W, H)
 
-    // Gradient header strip
-    const grd = ctx.createLinearGradient(0, 0, W, 0)
+    // Gradient header strip (top + left)
     const [c1, c2] = rankCfg.gradient.match(/#[0-9a-f]{6}/gi) ?? ['#475569', '#94a3b8']
+    const grd = ctx.createLinearGradient(0, 0, W, 0)
     grd.addColorStop(0, c1)
     grd.addColorStop(1, c2)
     ctx.fillStyle = grd
-    ctx.fillRect(0, 0, W, 4)
+    ctx.fillRect(0, 0, W, 5)
+    ctx.fillRect(0, 0, 5, H)
 
     // Avatar circle
     ctx.fillStyle = grd
     ctx.beginPath()
-    ctx.roundRect(24, 24, 64, 64, 16)
+    ctx.roundRect(20, 20, 70, 70, 16)
     ctx.fill()
     ctx.fillStyle = '#000'
-    ctx.font = 'bold 32px sans-serif'
+    ctx.font = 'bold 34px sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText(name[0]?.toUpperCase() ?? '?', 56, 67)
+    ctx.fillText(name[0]?.toUpperCase() ?? '?', 55, 67)
 
     // Name
-    ctx.fillStyle = '#fff'
+    ctx.fillStyle = '#ffffff'
     ctx.font = 'bold 20px sans-serif'
     ctx.textAlign = 'left'
-    ctx.fillText(name, 104, 48)
+    ctx.fillText(name, 106, 44)
+
+    // Username
+    if (user.username) {
+      ctx.fillStyle = '#6b7280'
+      ctx.font = '12px sans-serif'
+      ctx.fillText(`@${user.username}`, 106, 62)
+    }
 
     // Rank badge
     ctx.fillStyle = grd
     ctx.beginPath()
-    ctx.roundRect(104, 58, 120, 24, 12)
+    ctx.roundRect(106, user.username ? 72 : 60, 116, 22, 11)
     ctx.fill()
     ctx.fillStyle = '#000'
-    ctx.font = 'bold 12px sans-serif'
-    ctx.fillText(`🏆 ${rank}`, 114, 75)
+    ctx.font = 'bold 11px sans-serif'
+    ctx.fillText(`🏆 ${rank}`, 118, user.username ? 87 : 75)
 
-    // MMR
+    // MMR label
     ctx.fillStyle = '#6b7280'
-    ctx.font = '12px sans-serif'
-    ctx.fillText('MMR', 104, 100)
-    ctx.fillStyle = '#fff'
-    ctx.font = 'bold 24px sans-serif'
-    ctx.fillText(String(mmr), 140, 100)
+    ctx.font = '11px sans-serif'
+    ctx.fillText('MMR', 238, user.username ? 87 : 75)
+    ctx.fillStyle = rankCfg.color
+    ctx.font = 'bold 22px sans-serif'
+    ctx.fillText(String(mmr), 268, user.username ? 87 : 75)
 
     // Stats row
     const stats = [
       { label: 'Турниры', val: tournaments },
       { label: 'Победы',  val: wins },
-      { label: 'Поражения', val: losses },
     ]
-    ctx.fillStyle = 'rgba(255,255,255,0.05)'
+    ctx.fillStyle = 'rgba(255,255,255,0.04)'
     ctx.beginPath()
-    ctx.roundRect(24, 116, W - 48, 60, 12)
+    ctx.roundRect(20, 108, W - 40, 62, 12)
     ctx.fill()
     stats.forEach((s, i) => {
-      const x = 60 + i * 110
+      const x = 80 + i * 140
       ctx.fillStyle = rankCfg.color
-      ctx.font = 'bold 20px sans-serif'
+      ctx.font = 'bold 24px sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText(String(s.val), x, 146)
+      ctx.fillText(String(s.val), x, 140)
       ctx.fillStyle = '#6b7280'
       ctx.font = '10px sans-serif'
-      ctx.fillText(s.label, x, 162)
+      ctx.fillText(s.label, x, 158)
     })
 
     // Bio
     if (bio) {
       ctx.fillStyle = '#9ca3af'
-      ctx.font = '11px sans-serif'
+      ctx.font = 'italic 11px sans-serif'
       ctx.textAlign = 'left'
-      ctx.fillText(bio.slice(0, 60), 24, 196)
+      ctx.fillText(`"${bio.slice(0, 55)}"`, 20, 195)
     }
 
     // Watermark
-    ctx.fillStyle = '#1e293b'
+    ctx.fillStyle = '#334155'
     ctx.font = '10px sans-serif'
     ctx.textAlign = 'right'
-    ctx.fillText('SPORTBAZA · Iron Flow', W - 16, H - 10)
+    ctx.fillText('SPORTBAZA · Iron Flow', W - 16, H - 8)
 
     setShareOpen(true)
   }
@@ -221,125 +226,170 @@ export function Profile() {
       <div className="px-4 pt-6 pb-8">
         <motion.div variants={container} initial="initial" animate="animate" className="space-y-4">
 
-          {/* ── Player Card ─────────────────────────────────────── */}
-          <motion.div variants={item} className="glass-card relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: rankCfg.gradient }} />
+          {/* ── Hero Card ───────────────────────────────────────────── */}
+          <motion.div variants={item} className="relative overflow-hidden rounded-3xl"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            {/* Top gradient bar */}
+            <div className="absolute top-0 left-0 right-0 h-1 rounded-t-3xl" style={{ background: rankCfg.gradient }} />
 
-            {/* Share button */}
-            <button
-              onClick={shareProfile}
-              className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center active:scale-90 transition-transform"
-            >
-              <Share2 size={15} className="text-gray-400" />
-            </button>
+            {/* Subtle glow blob */}
+            <div
+              className="absolute -top-10 -right-10 w-48 h-48 rounded-full opacity-10 blur-3xl pointer-events-none"
+              style={{ background: rankCfg.color }}
+            />
 
-            <div className="flex items-center gap-4">
-              <div
-                className="w-20 h-20 rounded-2xl flex items-center justify-center shrink-0 text-3xl font-black text-black"
-                style={{ background: rankCfg.gradient, boxShadow: `0 0 32px ${rankCfg.shadow}` }}
+            <div className="px-5 pt-6 pb-5">
+              {/* Share button */}
+              <button
+                onClick={shareProfile}
+                className="absolute top-4 right-4 w-9 h-9 rounded-2xl flex items-center justify-center active:scale-90 transition-transform"
+                style={{ background: 'rgba(255,255,255,0.06)' }}
               >
-                {name[0]?.toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0 pr-8">
-                <h1 className="text-white font-bold text-xl truncate">{name}</h1>
-                {user.username && (
-                  <p className="text-gray-500 text-sm">@{user.username}</p>
-                )}
-                <div
-                  className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-black text-black"
-                  style={{ background: rankCfg.gradient }}
-                >
-                  <Trophy size={11} />
-                  {rank}
-                </div>
-              </div>
-            </div>
+                <Share2 size={15} className="text-gray-400" />
+              </button>
 
-            {/* Bio */}
-            <div className="mt-3 flex items-start gap-2">
-              {editBio ? (
-                <div className="flex-1 flex gap-2">
-                  <input
-                    autoFocus
-                    maxLength={150}
-                    value={bioInput}
-                    onChange={e => setBioInput(e.target.value)}
-                    placeholder="Девиз или описание..."
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm placeholder:text-gray-600 outline-none focus:border-neon-green/40"
-                  />
-                  <button
-                    onClick={saveBio}
-                    disabled={savingBio}
-                    className="w-9 h-9 rounded-xl bg-neon-green/20 flex items-center justify-center active:scale-90 shrink-0"
+              {/* Avatar + name */}
+              <div className="flex items-center gap-4">
+                <div className="relative shrink-0">
+                  <div
+                    className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center text-3xl font-black text-black"
+                    style={{ background: rankCfg.gradient, boxShadow: `0 0 28px ${rankCfg.shadow}, 0 0 56px ${rankCfg.shadow}40` }}
                   >
-                    <Check size={15} className="text-neon-green" />
-                  </button>
-                  <button
-                    onClick={() => setEditBio(false)}
-                    className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center active:scale-90 shrink-0"
-                  >
-                    <X size={15} className="text-gray-400" />
-                  </button>
+                    {name[0]?.toUpperCase()}
+                  </div>
                 </div>
-              ) : (
-                <>
-                  <p
-                    className="flex-1 text-gray-500 text-xs italic cursor-pointer"
-                    onClick={() => { setBioInput(bio); setEditBio(true) }}
+
+                <div className="flex-1 min-w-0 pr-10">
+                  <h1 className="text-white font-bold text-xl leading-tight truncate">{name}</h1>
+                  {user.username && (
+                    <p className="text-gray-500 text-xs mt-0.5">@{user.username}</p>
+                  )}
+                  <div
+                    className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-full text-[11px] font-black text-black"
+                    style={{ background: rankCfg.gradient }}
                   >
-                    {bio || 'Добавь девиз...'}
-                  </p>
+                    <Trophy size={10} />
+                    {rank}
+                  </div>
+                </div>
+              </div>
+
+              {/* Bio */}
+              <div className="mt-4">
+                {editBio ? (
+                  <div className="flex gap-2">
+                    <input
+                      autoFocus
+                      maxLength={150}
+                      value={bioInput}
+                      onChange={e => setBioInput(e.target.value)}
+                      placeholder="Девиз или описание..."
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm placeholder:text-gray-600 outline-none focus:border-neon-green/40"
+                    />
+                    <button
+                      onClick={saveBio}
+                      disabled={savingBio}
+                      className="w-9 h-9 rounded-xl bg-neon-green/20 flex items-center justify-center active:scale-90 shrink-0"
+                    >
+                      <Check size={15} className="text-neon-green" />
+                    </button>
+                    <button
+                      onClick={() => setEditBio(false)}
+                      className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center active:scale-90 shrink-0"
+                    >
+                      <X size={15} className="text-gray-400" />
+                    </button>
+                  </div>
+                ) : (
                   <button
+                    className="flex items-center gap-2 group w-full text-left"
                     onClick={() => { haptic.impact('light'); setBioInput(bio); setEditBio(true) }}
-                    className="shrink-0 active:scale-90"
                   >
-                    <Pencil size={12} className="text-gray-600" />
+                    <p className="flex-1 text-gray-500 text-xs italic leading-relaxed">
+                      {bio || 'Добавь девиз...'}
+                    </p>
+                    <Pencil size={11} className="text-gray-700 group-active:text-gray-400 shrink-0 transition-colors" />
                   </button>
-                </>
-              )}
-            </div>
+                )}
+              </div>
 
-            <div className="grid grid-cols-3 gap-2 mt-5 pt-4 border-t border-white/5">
-              <StatCell label="Победы"    value={String(wins)}        color={rankCfg.color} />
-              <StatCell label="Поражения" value={String(losses)}      color="#6b7280" />
-              <StatCell label="Турниры"   value={String(tournaments)} color="#6b7280" />
+              {/* Stats */}
+              <div
+                className="grid grid-cols-2 gap-3 mt-5 pt-4"
+                style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                <StatCell
+                  icon={<Trophy size={14} />}
+                  label="Победы"
+                  value={String(wins)}
+                  color={rankCfg.color}
+                />
+                <StatCell
+                  icon={<CalendarDays size={14} />}
+                  label="Турниры"
+                  value={String(tournaments)}
+                  color="#94a3b8"
+                />
+              </div>
             </div>
           </motion.div>
 
           {/* ── MMR Progress ─────────────────────────────────────── */}
-          <motion.div variants={item} className="glass-card space-y-3">
+          <motion.div variants={item}
+            className="rounded-3xl px-5 py-5 space-y-4"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
             <div className="flex items-center justify-between">
-              <span className="text-gray-400 text-xs uppercase tracking-widest font-semibold">Рейтинг (MMR)</span>
-              <span className="text-white font-black text-lg">{mmr}</span>
+              <div>
+                <p className="text-gray-400 text-[10px] uppercase tracking-widest font-semibold">Рейтинг</p>
+                <p className="text-white font-black text-3xl mt-0.5 leading-none">{mmr} <span className="text-gray-500 text-sm font-normal">MMR</span></p>
+              </div>
+              <div
+                className="px-4 py-2 rounded-2xl text-xs font-black"
+                style={{ background: `${rankCfg.color}18`, color: rankCfg.color, border: `1px solid ${rankCfg.color}30` }}
+              >
+                {rank}
+              </div>
             </div>
-            <div className="h-3 bg-white/5 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full rounded-full"
-                style={{ background: rankCfg.gradient }}
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 1.2, ease: 'easeOut', delay: 0.3 }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-500">
-                До следующего:{' '}
-                <span className="font-bold" style={{ color: rankCfg.color }}>
-                  {Math.max(0, mmrNext - mmr)} очков
+
+            <div className="space-y-2">
+              <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{ background: rankCfg.gradient }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 1.2, ease: 'easeOut', delay: 0.3 }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-gray-600">
+                  До следующего:{' '}
+                  <span className="font-bold" style={{ color: rankCfg.color }}>
+                    {Math.max(0, mmrNext - mmr)} очков
+                  </span>
                 </span>
-              </span>
-              <span className="text-gray-600">{Math.round(progress)}%</span>
+                <span className="text-gray-600 font-medium">{Math.round(progress)}%</span>
+              </div>
             </div>
           </motion.div>
 
           {/* ── Equipped Achievements ───────────────────────────── */}
           <motion.div variants={item}>
-            <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-3">
-              Экипированные награды
-              {pinned.length > 0 && <span className="ml-2 text-neon-green/60">({pinned.length}/3 закреплено)</span>}
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-gray-400 text-[10px] font-semibold uppercase tracking-widest">
+                Экипированные награды
+              </p>
+              {pinned.length > 0 && (
+                <span className="text-[10px] text-neon-green/60 font-medium">{pinned.length}/3 закреплено</span>
+              )}
+            </div>
             {equippedAchs.length === 0 ? (
-              <div className="glass-card text-center py-6 text-gray-600 text-sm">
+              <div
+                className="rounded-3xl text-center py-7 text-gray-600 text-sm"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+              >
                 Нет разблокированных наград
               </div>
             ) : (
@@ -349,8 +399,12 @@ export function Profile() {
                   return (
                     <div
                       key={ach.id}
-                      className="glass-card flex flex-col items-center gap-2 py-5 px-2"
-                      style={{ boxShadow: `0 0 24px ${rc.glow}` }}
+                      className="rounded-3xl flex flex-col items-center gap-2 py-5 px-2"
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        boxShadow: `0 0 20px ${rc.glow}`,
+                      }}
                     >
                       <span className="text-3xl">{ach.icon}</span>
                       <p className="text-white text-[10px] font-semibold text-center leading-tight">{ach.name}</p>
@@ -364,13 +418,17 @@ export function Profile() {
             )}
           </motion.div>
 
-          {/* ── Buttons row ─────────────────────────────────────── */}
+          {/* ── Action Buttons ───────────────────────────────────── */}
           <motion.div variants={item} className="grid grid-cols-2 gap-3">
             <button
               onClick={() => { haptic.impact('light'); setAchOpen(true) }}
-              className="glass-card flex items-center gap-3 py-4 active:scale-[0.98] transition-transform"
+              className="flex items-center gap-3 px-4 py-4 rounded-3xl active:scale-[0.97] transition-transform"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
             >
-              <div className="w-9 h-9 rounded-xl bg-amber-400/10 flex items-center justify-center shrink-0">
+              <div
+                className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(251,191,36,0.12)' }}
+              >
                 <Trophy size={16} className="text-amber-400" />
               </div>
               <div className="text-left min-w-0">
@@ -381,9 +439,13 @@ export function Profile() {
 
             <button
               onClick={() => { haptic.impact('light'); setStatsOpen(true) }}
-              className="glass-card flex items-center gap-3 py-4 active:scale-[0.98] transition-transform"
+              className="flex items-center gap-3 px-4 py-4 rounded-3xl active:scale-[0.97] transition-transform"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
             >
-              <div className="w-9 h-9 rounded-xl bg-neon-green/10 flex items-center justify-center shrink-0">
+              <div
+                className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(57,255,20,0.08)' }}
+              >
                 <TrendingUp size={16} className="text-neon-green" />
               </div>
               <div className="text-left">
@@ -396,7 +458,7 @@ export function Profile() {
         </motion.div>
       </div>
 
-      {/* ── Stats full-screen sheet ──────────────────────────────── */}
+      {/* ── Stats sheet ──────────────────────────────────────────── */}
       <BottomSheet isOpen={statsOpen} onClose={() => setStatsOpen(false)} title="Статистика">
         <div className="max-h-[70vh] overflow-y-auto overscroll-contain -mx-4 px-4">
           <Stats />
@@ -418,13 +480,15 @@ export function Profile() {
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={downloadCard}
-              className="h-12 rounded-2xl bg-neon-green/15 border border-neon-green/25 text-neon-green font-bold text-sm active:scale-95 transition-transform"
+              className="h-12 rounded-2xl font-bold text-sm active:scale-95 transition-transform text-neon-green"
+              style={{ background: 'rgba(57,255,20,0.1)', border: '1px solid rgba(57,255,20,0.2)' }}
             >
               Скачать PNG
             </button>
             <button
               onClick={shareTelegram}
-              className="h-12 rounded-2xl bg-white/5 border border-white/10 text-white font-bold text-sm active:scale-95 transition-transform"
+              className="h-12 rounded-2xl font-bold text-sm active:scale-95 transition-transform text-white"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
             >
               В Telegram
             </button>
@@ -446,9 +510,9 @@ export function Profile() {
               <div
                 key={ach.id}
                 onClick={() => ach.unlocked && togglePin(ach.id)}
-                className={`rounded-2xl p-4 border flex flex-col gap-2 relative ${
+                className={`rounded-2xl p-4 border flex flex-col gap-2 relative transition-transform ${
                   ach.unlocked
-                    ? 'bg-white/5 border-white/10 active:scale-[0.97] transition-transform cursor-pointer'
+                    ? 'bg-white/5 border-white/10 active:scale-[0.97] cursor-pointer'
                     : 'bg-white/[0.02] border-white/5 opacity-40'
                 } ${isPinned ? 'ring-2 ring-neon-green/50' : ''}`}
                 style={ach.unlocked ? { boxShadow: `0 0 18px ${rc.glow}` } : {}}
@@ -474,11 +538,29 @@ export function Profile() {
   )
 }
 
-function StatCell({ label, value, color }: { label: string; value: string; color: string }) {
+function StatCell({
+  icon, label, value, color,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  color: string
+}) {
   return (
-    <div className="text-center">
-      <p className="font-black text-xl leading-none" style={{ color }}>{value}</p>
-      <p className="text-gray-500 text-[10px] mt-1">{label}</p>
+    <div
+      className="flex items-center gap-3 px-3 py-3 rounded-2xl"
+      style={{ background: `${color}10`, border: `1px solid ${color}20` }}
+    >
+      <div
+        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+        style={{ color, background: `${color}15` }}
+      >
+        {icon}
+      </div>
+      <div>
+        <p className="font-black text-lg leading-none" style={{ color }}>{value}</p>
+        <p className="text-gray-500 text-[10px] mt-0.5">{label}</p>
+      </div>
     </div>
   )
 }
