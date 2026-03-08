@@ -63,7 +63,7 @@ def records_age_filter_kb(
     builder.row(
         InlineKeyboardButton(
             text="🔙 Назад",
-            callback_data=RecordsCb(action="list").pack(),
+            callback_data=RecordsCb(action="reset").pack(),
         )
     )
     return builder.as_markup()

@@ -205,6 +205,7 @@ async def register_participant(
     gender: str,
     age_category: Optional[str] = None,
     qr_token: Optional[str] = None,
+    opening_weight: Optional[float] = None,
 ) -> Tuple[Optional[Participant], str]:
     """
     Register athlete for a tournament.
@@ -234,6 +235,7 @@ async def register_participant(
         age_category=age_category,
         category_id=category.id if category else None,
         qr_token=qr_token,
+        opening_weight=opening_weight,
     )
     session.add(p)
     await session.flush()

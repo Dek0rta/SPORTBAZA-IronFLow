@@ -72,7 +72,7 @@ async def cq_export_tournament(
         return
 
     participants = await list_participants(session, callback_data.tid)
-    formula      = t.scoring_formula
+    formula      = t.scoring_formula or FormulaType.TOTAL
     formula_label = FormulaType.LABELS.get(formula, formula)
 
     # ── Update Records Vault for finished tournaments ─────────────────────────

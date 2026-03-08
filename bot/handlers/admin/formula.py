@@ -33,13 +33,15 @@ async def cq_formula_toggle(
         await callback.answer("Турнир не найден.", show_alert=True)
         return
 
+    current_formula = t.scoring_formula or FormulaType.TOTAL
+    current_label   = FormulaType.LABELS.get(current_formula, current_formula)
     await callback.message.edit_text(
         f"🔢 *Выбор формулы для турнира*\n\n"
         f"🏆 {t.name}\n\n"
-        f"Текущая формула: *{t.formula_label}*\n\n"
+        f"Текущая формула: *{current_label}*\n\n"
         f"Выберите формулу для подсчёта и ранжирования участников:",
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=formula_select_kb(t.id, t.scoring_formula),
+        reply_markup=formula_select_kb(t.id, current_formula),
     )
     await callback.answer()
 

@@ -159,7 +159,6 @@ async def _check_and_update_record(
         existing.tournament_id  = tournament.id
         existing.tournament_name = tournament.name
         existing.participant_id = participant.id
-        from sqlalchemy import func
         existing.set_at         = tournament.created_at  # timestamp of the competition
         return True
 

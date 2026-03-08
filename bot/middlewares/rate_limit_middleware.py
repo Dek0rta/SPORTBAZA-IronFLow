@@ -66,20 +66,21 @@ class RateLimitMiddleware(BaseMiddleware):
         data: Dict[str, Any],
     ) -> None:
         """Send a single throttle alert and acknowledge callbacks to clear spinners."""
+        from aiogram.types import Update
+
         msg = "⏳ Слишком много запросов. Подождите немного и попробуйте снова."
 
-        # Determine the underlying update type
-        update = data.get("event_update")
-        if update is None:
+        # When registered via dp.update.middleware(), event IS the Update object
+        if not isinstance(event, Update):
             return
 
-        if update.callback_query:
+        if event.callback_query:
             try:
-                await update.callback_query.answer(msg, show_alert=True)
+                await event.callback_query.answer(msg, show_alert=True)
             except Exception:
                 pass
-        elif update.message:
+        elif event.message:
             try:
-                await update.message.answer(msg)
+                await event.message.answer(msg)
             except Exception:
                 pass
