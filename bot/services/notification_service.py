@@ -93,7 +93,7 @@ async def notify_registration_confirmed(
         await bot.send_message(
             chat_id=telegram_id, text=text, parse_mode=ParseMode.MARKDOWN
         )
-    except (TelegramForbiddenError, TelegramBadRequest) as e:
+    except Exception as e:
         logger.warning("Could not notify athlete telegram_id=%d: %s", telegram_id, e)
 
 

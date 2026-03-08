@@ -350,6 +350,27 @@ class TestParticipantRegistration:
         assert "Иванов Иван" in names
         assert "Смирнова Анна" not in names
 
+    async def test_confirm_status_visible_without_commit(
+        self, async_session
+    ) -> None:
+        """Status change must be reflected in the same session without an explicit
+        commit — this matches the real handler flow where middleware commits only
+        after the handler returns."""
+        user = await _make_user(async_session, 10003, "Confirm")
+        t = await _make_tournament(async_session)
+        p, _ = await register_participant(
+            async_session, t.id, user.id, "Петров Пётр", 90.0, "M", "open"
+        )
+        await async_session.commit()
+        assert p.status == ParticipantStatus.REGISTERED
+
+        await update_participant_status(async_session, p.id, ParticipantStatus.CONFIRMED)
+        # No commit here — simulates handler flow before middleware commit
+
+        participants = await list_participants(async_session, t.id)
+        target = next(x for x in participants if x.id == p.id)
+        assert target.status == ParticipantStatus.CONFIRMED
+
 
 # ─────────────────────────── Attempt CRUD ────────────────────────────────────
 

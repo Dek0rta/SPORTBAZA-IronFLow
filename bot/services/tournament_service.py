@@ -329,11 +329,9 @@ async def update_participant_status(
     participant_id: int,
     status: str,
 ) -> None:
-    await session.execute(
-        update(Participant)
-        .where(Participant.id == participant_id)
-        .values(status=status)
-    )
+    p = await session.get(Participant, participant_id)
+    if p:
+        p.status = status
 
 
 # ── Attempts ──────────────────────────────────────────────────────────────────
