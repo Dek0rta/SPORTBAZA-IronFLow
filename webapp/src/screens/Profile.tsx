@@ -211,7 +211,7 @@ export function Profile() {
 
   const shareTelegram = () => {
     const text = `🏆 ${name}\n⚡ ${rank} · ${mmr} MMR\n🏅 Турниров: ${tournaments} · Побед: ${wins}\n\n#SPORTBAZA #IronFlow`
-    tg?.switchInlineQuery?.(text)
+    tg?.switchInlineQuery(text)
     haptic.success()
   }
 

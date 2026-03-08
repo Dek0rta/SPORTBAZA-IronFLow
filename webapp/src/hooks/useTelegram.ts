@@ -22,7 +22,11 @@ export interface TelegramWebApp {
   setBackgroundColor(color: string): void
   enableClosingConfirmation(): void
   disableClosingConfirmation(): void
+  openLink(url: string): void
+  openTelegramLink(url: string): void
+  switchInlineQuery(query: string, choose_chat_types?: string[]): void
   HapticFeedback: HapticFeedback
+  initData: string
   initDataUnsafe: {
     user?: TelegramUser
     query_id?: string
