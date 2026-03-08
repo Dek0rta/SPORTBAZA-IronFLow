@@ -24,10 +24,10 @@ def tournament_list_kb(tournaments: List[Tournament]) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def age_category_kb() -> InlineKeyboardMarkup:
-    """Age category selection buttons."""
+def age_category_kb(gender: str = "M") -> InlineKeyboardMarkup:
+    """Age category selection buttons (gender-aware labels)."""
+    labels = AgeCategory.LABELS_F if gender == "F" else AgeCategory.LABELS_M
     builder = InlineKeyboardBuilder()
-    # Row by row: 2 buttons each for better readability
     rows = [
         [AgeCategory.SUB_JUNIOR, AgeCategory.JUNIOR],
         [AgeCategory.OPEN],
@@ -37,7 +37,7 @@ def age_category_kb() -> InlineKeyboardMarkup:
     for row in rows:
         builder.row(*[
             InlineKeyboardButton(
-                text=AgeCategory.LABELS[key],
+                text=labels[key],
                 callback_data=f"reg_age:{key}",
             )
             for key in row
@@ -52,6 +52,14 @@ def gender_kb() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="👨 Мужчины",  callback_data="reg_gender:M"),
         InlineKeyboardButton(text="👩 Женщины",  callback_data="reg_gender:F"),
     )
+    builder.row(InlineKeyboardButton(text="❌ Отмена", callback_data=MainMenuCb(action="main").pack()))
+    return builder.as_markup()
+
+
+def opening_weight_kb() -> InlineKeyboardMarkup:
+    """Keyboard for the opening weight step: skip or cancel."""
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="⏭ Пропустить", callback_data="reg_skip_opening_weight"))
     builder.row(InlineKeyboardButton(text="❌ Отмена", callback_data=MainMenuCb(action="main").pack()))
     return builder.as_markup()
 

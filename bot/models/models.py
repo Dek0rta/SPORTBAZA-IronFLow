@@ -78,22 +78,44 @@ class ParticipantStatus:
 
 
 class AgeCategory:
-    SUB_JUNIOR = "sub_junior"  # до 18 лет
-    JUNIOR     = "junior"      # 18–23 лет
+    SUB_JUNIOR = "sub_junior"  # 14-18 лет
+    JUNIOR     = "junior"      # 19-23 лет
     OPEN       = "open"        # открытая (без ограничений)
     MASTERS1   = "masters1"    # 40–49 лет
     MASTERS2   = "masters2"    # 50–59 лет
     MASTERS3   = "masters3"    # 60–69 лет
     MASTERS4   = "masters4"    # 70+ лет
 
+    # Gender-specific labels for registration keyboard
+    LABELS_M = {
+        "sub_junior": "Юноши 14-18",
+        "junior":     "Юниоры 19-23",
+        "open":       "Открытая 19+",
+        "masters1":   "Ветераны 40-49",
+        "masters2":   "Ветераны 50-59",
+        "masters3":   "Ветераны 60-69",
+        "masters4":   "Ветераны 70+",
+    }
+
+    LABELS_F = {
+        "sub_junior": "Девушки 14-18",
+        "junior":     "Юниорки 19-23",
+        "open":       "Открытая 19+",
+        "masters1":   "Ветераны 40-49",
+        "masters2":   "Ветераны 50-59",
+        "masters3":   "Ветераны 60-69",
+        "masters4":   "Ветераны 70+",
+    }
+
+    # Neutral labels for admin panel, records vault, etc.
     LABELS = {
-        "sub_junior": "Юниоры (до 18 лет)",
-        "junior":     "Молодёжь (18–23 лет)",
-        "open":       "Открытая",
-        "masters1":   "Мастера 1 (40–49 лет)",
-        "masters2":   "Мастера 2 (50–59 лет)",
-        "masters3":   "Мастера 3 (60–69 лет)",
-        "masters4":   "Мастера 4 (70+ лет)",
+        "sub_junior": "Юноши 14-18",
+        "junior":     "Юниоры 19-23",
+        "open":       "Открытая 19+",
+        "masters1":   "Ветераны 40-49",
+        "masters2":   "Ветераны 50-59",
+        "masters3":   "Ветераны 60-69",
+        "masters4":   "Ветераны 70+",
     }
 
 
@@ -256,6 +278,8 @@ class Participant(Base):
     # QR check-in fields
     qr_token:      Mapped[Optional[str]] = mapped_column(String(36), nullable=True, unique=True, index=True)
     checked_in:    Mapped[bool]          = mapped_column(Boolean, default=False)
+    # Opening (first) attempt weight declared at registration
+    opening_weight: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     user:       Mapped["User"]                  = relationship(back_populates="participants")
     tournament: Mapped["Tournament"]            = relationship(back_populates="participants")

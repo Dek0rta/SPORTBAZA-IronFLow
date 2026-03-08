@@ -17,8 +17,8 @@ from aiogram.types import BufferedInputFile
 
 from bot.keyboards import (
     MainMenuCb, TournamentCb,
-    tournament_list_kb, gender_kb, age_category_kb, cancel_registration_kb,
-    confirm_registration_kb, athlete_main_menu,
+    tournament_list_kb, gender_kb, age_category_kb, opening_weight_kb,
+    cancel_registration_kb, confirm_registration_kb, athlete_main_menu,
 )
 from bot.models.models import AgeCategory
 from bot.services import (
@@ -146,7 +146,7 @@ async def cq_gender(callback: CallbackQuery, state: FSMContext) -> None:
         f"🚻 Пол: *{g_label}*\n\n"
         f"Выберите *возрастную категорию*:",
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=age_category_kb(),
+        reply_markup=age_category_kb(gender),
     )
     await callback.answer()
 
@@ -156,26 +156,18 @@ async def cq_gender(callback: CallbackQuery, state: FSMContext) -> None:
 @router.callback_query(F.data.startswith("reg_age:"), RegistrationStates.choose_age_category)
 async def cq_age_category(callback: CallbackQuery, state: FSMContext) -> None:
     age_cat = callback.data.split(":")[1]
-    await state.update_data(age_category=age_cat)
-    await state.set_state(RegistrationStates.confirm)
-
     data = await state.get_data()
-    g_label = "👨 Мужчина" if data["gender"] == "M" else "👩 Женщина"
-    age_label = AgeCategory.LABELS.get(age_cat, age_cat)
-
-    text = (
-        f"📝 *Проверьте данные заявки:*\n\n"
-        f"🏆 Турнир: *{data['tournament_name']}*\n"
-        f"👤 ФИО: {data['full_name']}\n"
-        f"⚖️ Вес: `{data['bodyweight']:g} кг`\n"
-        f"🚻 Пол: {g_label}\n"
-        f"🏅 Возрастная категория: {age_label}\n\n"
-        f"_Весовая категория будет определена автоматически._"
-    )
+    gender = data.get("gender", "M")
+    labels = AgeCategory.LABELS_F if gender == "F" else AgeCategory.LABELS_M
+    age_label = labels.get(age_cat, age_cat)
+    await state.update_data(age_category=age_cat)
+    await state.set_state(RegistrationStates.enter_opening_weight)
     await callback.message.edit_text(
-        text,
+        f"🏅 Возрастная категория: *{age_label}*\n\n"
+        f"Введите ваш *первый заявочный вес* (кг, например: `120`):\n"
+        f"_Это начальный вес для первой попытки на соревновании._",
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=confirm_registration_kb(),
+        reply_markup=opening_weight_kb(),
     )
     await callback.answer()
 
@@ -183,12 +175,70 @@ async def cq_age_category(callback: CallbackQuery, state: FSMContext) -> None:
 # ── Step 5.1: text fallback during age-category step ─────────────────────────
 
 @router.message(RegistrationStates.choose_age_category)
-async def msg_age_category_hint(message: Message) -> None:
+async def msg_age_category_hint(message: Message, state: FSMContext) -> None:
     """Catch accidental text input during the age-category selection step."""
+    data = await state.get_data()
+    gender = data.get("gender", "M")
     await message.answer(
         "👆 Пожалуйста, выберите возрастную категорию, нажав на одну из кнопок:",
-        reply_markup=age_category_kb(),
+        reply_markup=age_category_kb(gender),
     )
+
+
+# ── Step 5.5: opening weight ──────────────────────────────────────────────────
+
+async def _show_confirm(message_or_callback, state: FSMContext, edit: bool = False) -> None:
+    """Render the confirmation screen. Works for both Message and CallbackQuery."""
+    data = await state.get_data()
+    gender = data.get("gender", "M")
+    g_label = "👨 Мужчина" if gender == "M" else "👩 Женщина"
+    labels = AgeCategory.LABELS_F if gender == "F" else AgeCategory.LABELS_M
+    age_label = labels.get(data.get("age_category", ""), data.get("age_category", ""))
+    ow = data.get("opening_weight")
+    ow_line = f"🏋️ Первый вес: `{ow:g} кг`\n" if ow else ""
+
+    text = (
+        f"📝 *Проверьте данные заявки:*\n\n"
+        f"🏆 Турнир: *{data['tournament_name']}*\n"
+        f"👤 ФИО: {data['full_name']}\n"
+        f"⚖️ Собственный вес: `{data['bodyweight']:g} кг`\n"
+        f"🚻 Пол: {g_label}\n"
+        f"🏅 Возрастная категория: {age_label}\n"
+        f"{ow_line}\n"
+        f"_Весовая категория будет определена автоматически._"
+    )
+    markup = confirm_registration_kb()
+    if edit:
+        await message_or_callback.edit_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=markup)
+    else:
+        await message_or_callback.answer(text, parse_mode=ParseMode.MARKDOWN, reply_markup=markup)
+
+
+@router.message(RegistrationStates.enter_opening_weight)
+async def msg_opening_weight(message: Message, state: FSMContext) -> None:
+    raw = message.text.strip().replace(",", ".") if message.text else ""
+    try:
+        ow = float(raw)
+        if not (0 < ow < 1000):
+            raise ValueError
+    except ValueError:
+        await message.answer(
+            "⚠️ Введите корректный вес (кг), например `120`:",
+            reply_markup=opening_weight_kb(),
+        )
+        return
+
+    await state.update_data(opening_weight=ow)
+    await state.set_state(RegistrationStates.confirm)
+    await _show_confirm(message, state, edit=False)
+
+
+@router.callback_query(F.data == "reg_skip_opening_weight", RegistrationStates.enter_opening_weight)
+async def cq_skip_opening_weight(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.update_data(opening_weight=None)
+    await state.set_state(RegistrationStates.confirm)
+    await _show_confirm(callback.message, state, edit=True)
+    await callback.answer()
 
 
 # ── Step 6: confirm ───────────────────────────────────────────────────────────
@@ -219,6 +269,7 @@ async def cq_confirm_registration(
         gender=data["gender"],
         age_category=data.get("age_category"),
         qr_token=qr_token,
+        opening_weight=data.get("opening_weight"),
     )
 
     if error:
@@ -233,7 +284,9 @@ async def cq_confirm_registration(
     participant = await get_participant(session, participant.id)
 
     cat = participant.category.display_name if participant.category else "будет назначена"
-    age_label = AgeCategory.LABELS.get(participant.age_category, "") if participant.age_category else ""
+    p_labels = AgeCategory.LABELS_F if participant.gender == "F" else AgeCategory.LABELS_M
+    age_label = p_labels.get(participant.age_category, "") if participant.age_category else ""
+    ow_line = f"🏋️ Первый вес: `{participant.opening_weight:g} кг`\n" if participant.opening_weight else ""
     text = (
         f"🎉 *Вы успешно зарегистрированы!*\n\n"
         f"━━━━━━━━━━━━━━━━━━\n"
@@ -242,6 +295,7 @@ async def cq_confirm_registration(
         f"👤 {participant.full_name}\n"
         f"⚖️ Вес: `{participant.bodyweight:g} кг`\n"
         f"🏅 Возрастная категория: {age_label}\n"
+        f"{ow_line}"
         f"📂 Весовая категория: {cat}\n"
         f"📌 Статус: ⚪️ Ожидание подтверждения\n\n"
         f"Вы получите уведомление, когда заявка будет подтверждена. 🔔\n\n"

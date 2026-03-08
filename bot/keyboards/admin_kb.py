@@ -128,7 +128,8 @@ def tournament_detail_admin_kb(t: Tournament) -> InlineKeyboardMarkup:
 
     # Formula selector — available for all statuses except DRAFT
     if t.status != TournamentStatus.DRAFT:
-        formula_label = FormulaType.LABELS.get(t.scoring_formula, t.scoring_formula)
+        formula = t.scoring_formula or FormulaType.TOTAL
+        formula_label = FormulaType.LABELS.get(formula, formula)
         builder.row(
             InlineKeyboardButton(
                 text=f"🔢 Формула: {formula_label}",
@@ -189,10 +190,10 @@ def confirm_action_kb(yes_cb: str, no_cb: str) -> InlineKeyboardMarkup:
 
 # ── Category selector (multi-toggle) ─────────────────────────────────────────
 
-# Predefined IPF-style category sets
+# Predefined weight categories (WPC/IPF standard)
 PREDEFINED_CATEGORIES = {
-    "M": ["-59", "-66", "-74", "-83", "-93", "-105", "-120", "120+"],
-    "F": ["-47", "-52", "-57", "-63", "-69", "-76", "-84", "84+"],
+    "M": ["-53", "-59", "-66", "-74", "-83", "-93", "-105", "-120", "120+"],
+    "F": ["-43", "-47", "-52", "-57", "-63", "-69", "-76", "-84", "84+"],
 }
 
 
