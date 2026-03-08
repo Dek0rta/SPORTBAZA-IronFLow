@@ -92,6 +92,12 @@ export const mockAchievements: Achievement[] = [
   { id: 8, name: 'Берсерк',          icon: '🔥', rarity: 'epic',      unlocked: false, desc: 'Выиграй 5 турниров за сезон' },
 ]
 
+export const mockStatsData: Record<'squat' | 'bench' | 'deadlift', { date: string; weight: number; tournament?: string }[]> = {
+  squat:    [{ date: 'Фев 25', weight: 150 }, { date: 'Мар 8', weight: 160 }],
+  bench:    [{ date: 'Фев 25', weight: 100 }, { date: 'Мар 8', weight: 105 }],
+  deadlift: [{ date: 'Фев 25', weight: 190 }, { date: 'Мар 8', weight: 200 }],
+}
+
 export const mockLeaderboard: LeaderboardPlayer[] = [
   { id: 1,  name: 'ИванС',      rank: 'Elite I',   tier: 'elite',  mmr: 2840, isMe: false },
   { id: 2,  name: 'МаксПауэр',  rank: 'Elite I',   tier: 'elite',  mmr: 2710, isMe: false },

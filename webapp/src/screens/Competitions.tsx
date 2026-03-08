@@ -305,12 +305,24 @@ export function Competitions() {
           <div className="space-y-5">
             {/* QR */}
             <div className="flex flex-col items-center gap-3">
-              <div className="w-52 h-52 bg-white rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(57,255,20,0.15)]">
-                <QrCode size={128} className="text-black" />
-              </div>
+              {selected.qr_token ? (
+                <div className="w-52 h-52 bg-white rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(57,255,20,0.15)] overflow-hidden">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=192x192&data=${encodeURIComponent(selected.qr_token)}&margin=4`}
+                    alt="QR чекин"
+                    width={192}
+                    height={192}
+                    className="rounded-2xl"
+                  />
+                </div>
+              ) : (
+                <div className="w-52 h-52 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center">
+                  <QrCode size={64} className="text-gray-700" />
+                </div>
+              )}
               <p className="text-gray-500 text-xs text-center">
                 {selected.qr_token
-                  ? <>Токен: <span className="text-gray-300 font-mono">{selected.qr_token}</span></>
+                  ? <>Покажи организатору для чекина</>
                   : 'QR-код появится после подтверждения заявки'
                 }
               </p>

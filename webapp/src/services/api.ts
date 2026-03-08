@@ -35,6 +35,16 @@ async function post<T>(path: string): Promise<T> {
   return r.json()
 }
 
+async function put<T>(path: string, body: unknown): Promise<T> {
+  const r = await fetch(`${BASE}${path}`, {
+    method: 'PUT',
+    headers: { 'X-Telegram-Init-Data': initData(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!r.ok) throw new Error(`${r.status}`)
+  return r.json()
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface Me {
@@ -153,7 +163,20 @@ export interface UserProfile {
   wins: number
   losses: number
   tournaments: number
+  bio: string | null
   achievements: Achievement[]
+}
+
+export interface StatPoint {
+  date: string
+  weight: number
+  tournament?: string
+}
+
+export interface MyStats {
+  squat: StatPoint[]
+  bench: StatPoint[]
+  deadlift: StatPoint[]
 }
 
 export interface MyRegistration {
@@ -184,4 +207,6 @@ export const api = {
   userProfile:           (tgId: number) => get<PublicProfile>(`/api/users/${tgId}/profile`),
   notifications:         ()           => get<AppNotification[]>('/api/notifications'),
   markNotificationsRead: ()           => post<{ ok: boolean }>('/api/notifications/read-all'),
+  myStats:               ()           => get<MyStats>('/api/my-stats'),
+  updateBio:             (bio: string | null) => put<{ ok: boolean; bio: string | null }>('/api/profile/bio', { bio }),
 }

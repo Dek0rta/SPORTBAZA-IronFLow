@@ -32,7 +32,7 @@ async def cors_middleware(request: web.Request, handler):
     if request.method == "OPTIONS":
         return web.Response(status=204, headers={
             "Access-Control-Allow-Origin":  "*",
-            "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Init-Data",
         })
     try:
@@ -324,6 +324,7 @@ async def get_profile(req: web.Request):
             "wins":         wins,
             "losses":       losses,
             "tournaments":  len(parts),
+            "bio":          user.bio,
             "achievements": ach_module.compute(all_parts, recs, wd_count),
         })
 
@@ -637,3 +638,74 @@ async def mark_notifications_read(req: web.Request):
         await session.commit()
 
     return web.json_response({"ok": True})
+
+
+# ── GET /api/my-stats ─────────────────────────────────────────────────────────
+
+@routes.get("/api/my-stats")
+async def get_my_stats(req: web.Request):
+    user_data = parse_tg_user(_init_data(req))
+    if not user_data:
+        return web.json_response({"squat": [], "bench": [], "deadlift": []})
+
+    tg_id = user_data["id"]
+    async with AsyncSessionFactory() as session:
+        user_result = await session.execute(select(User).where(User.telegram_id == tg_id))
+        user = user_result.scalar_one_or_none()
+        if not user:
+            return web.json_response({"squat": [], "bench": [], "deadlift": []})
+
+        p_result = await session.execute(
+            select(Participant)
+            .join(Tournament)
+            .where(
+                Participant.user_id == user.id,
+                Tournament.status   == TournamentStatus.FINISHED,
+                Participant.status  != ParticipantStatus.WITHDRAWN,
+            )
+            .options(
+                selectinload(Participant.attempts),
+                selectinload(Participant.tournament),
+            )
+            .order_by(Tournament.created_at.asc())
+        )
+        parts = p_result.scalars().all()
+
+    out: dict[str, list] = {"squat": [], "bench": [], "deadlift": []}
+    for p in parts:
+        lift_types = TournamentType.LIFTS.get(p.tournament.tournament_type, [])
+        date_label = (
+            p.tournament.tournament_date
+            or (p.tournament.created_at.strftime("%d.%m") if p.tournament.created_at else "?")
+        )
+        for lt in ("squat", "bench", "deadlift"):
+            if lt not in lift_types:
+                continue
+            best = p.best_lift(lt)
+            if best:
+                out[lt].append({"date": date_label, "weight": best, "tournament": p.tournament.name})
+
+    return web.json_response(out)
+
+
+# ── PUT /api/profile/bio ──────────────────────────────────────────────────────
+
+@routes.put("/api/profile/bio")
+async def update_bio(req: web.Request):
+    user_data = parse_tg_user(_init_data(req))
+    if not user_data:
+        raise web.HTTPUnauthorized()
+
+    body = await req.json()
+    bio  = (body.get("bio") or "").strip()[:150]
+
+    tg_id = user_data["id"]
+    async with AsyncSessionFactory() as session:
+        user_result = await session.execute(select(User).where(User.telegram_id == tg_id))
+        user = user_result.scalar_one_or_none()
+        if not user:
+            raise web.HTTPNotFound()
+        user.bio = bio or None
+        await session.commit()
+
+    return web.json_response({"ok": True, "bio": bio or None})

@@ -185,6 +185,7 @@ class User(Base):
     first_name:  Mapped[str]           = mapped_column(String(255))
     last_name:   Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_admin:    Mapped[bool]          = mapped_column(Boolean, default=False)
+    bio:         Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
     created_at:  Mapped[datetime]      = mapped_column(DateTime, default=func.now())
 
     participants: Mapped[List["Participant"]] = relationship(

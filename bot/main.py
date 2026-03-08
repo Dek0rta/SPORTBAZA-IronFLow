@@ -59,7 +59,9 @@ async def create_tables() -> None:
             # v2.1
             "ALTER TABLE participants ADD COLUMN opening_weight FLOAT",
             "ALTER TABLE tournaments ADD COLUMN tournament_date VARCHAR(20)",
-            # v2.2 — in-app notifications
+            # v2.2
+            "ALTER TABLE users ADD COLUMN bio VARCHAR(150)",
+            # v2.3 — in-app notifications
             ("CREATE TABLE IF NOT EXISTS notifications ("
              "id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, "
              "type VARCHAR(50) NOT NULL, title VARCHAR(255) NOT NULL, body VARCHAR(1000) NOT NULL, "
