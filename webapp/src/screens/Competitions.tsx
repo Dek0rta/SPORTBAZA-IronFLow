@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MapPin, Calendar, Trophy, Users, QrCode, ChevronRight, Trash2, RefreshCw } from 'lucide-react'
+import { Calendar, Trophy, Users, QrCode, ChevronRight, Trash2, RefreshCw, BarChart2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTelegram } from '../hooks/useTelegram'
 import { BottomSheet } from '../components/BottomSheet'
 import { api } from '../services/api'
-import type { ApiTournament, MyRegistration, Me } from '../services/api'
+import type { ApiTournament, MyRegistration, Me, TournamentResults } from '../services/api'
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
   approved:   { label: 'Одобрена',        color: '#39ff14', bg: 'rgba(57,255,20,0.1)'   },
@@ -29,9 +29,11 @@ export function Competitions() {
   const [myRegs, setMyRegs]     = useState<MyRegistration[]>([])
   const [me, setMe]             = useState<Me | null>(null)
   const [loading, setLoading]   = useState(true)
-  const [selected, setSelected]         = useState<MyRegistration | null>(null)
-  const [selectedT, setSelectedT]       = useState<ApiTournament | null>(null)
-  const [deleting, setDeleting]         = useState<number | null>(null)
+  const [selected, setSelected]             = useState<MyRegistration | null>(null)
+  const [selectedT, setSelectedT]           = useState<ApiTournament | null>(null)
+  const [results, setResults]               = useState<TournamentResults | null>(null)
+  const [resultsLoading, setResultsLoading] = useState(false)
+  const [deleting, setDeleting]             = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -54,6 +56,20 @@ export function Competitions() {
 
   const upcoming = tournaments.filter(t => t.status === 'registration' || t.status === 'active')
   const history  = tournaments.filter(t => t.status === 'finished')
+
+  const openResults = async (t: ApiTournament) => {
+    haptic.impact('light')
+    setResultsLoading(true)
+    setResults(null)
+    try {
+      const data = await api.tournamentResults(t.id)
+      setResults(data)
+    } catch {
+      haptic.error()
+    } finally {
+      setResultsLoading(false)
+    }
+  }
 
   const handleDelete = async (id: number) => {
     haptic.impact('medium')
@@ -122,6 +138,7 @@ export function Competitions() {
                   : history.map((t, i) => (
                     <TournamentCard key={t.id} t={t} index={i}
                       onDetail={() => { haptic.impact('light'); setSelectedT(t) }}
+                      onResults={() => openResults(t)}
                       isAdmin={me?.is_admin ?? false}
                       onDelete={() => handleDelete(t.id)}
                       deleting={deleting === t.id}
@@ -221,6 +238,63 @@ export function Competitions() {
         )}
       </BottomSheet>
 
+      {/* ── Results BottomSheet ───────────────────────────────── */}
+      <BottomSheet
+        isOpen={results !== null || resultsLoading}
+        onClose={() => { setResults(null); setResultsLoading(false) }}
+        title={results ? `Результаты: ${results.tournament.name}` : 'Загрузка...'}
+      >
+        {resultsLoading && (
+          <div className="flex justify-center py-8">
+            <RefreshCw size={28} className="text-neon-green animate-spin" />
+          </div>
+        )}
+        {results && (
+          <div className="space-y-6">
+            <p className="text-gray-500 text-xs text-center">
+              Формула: <span className="text-gray-300 font-semibold">{results.tournament.formula_label}</span>
+              {results.tournament.date && <> · 📅 {results.tournament.date}</>}
+            </p>
+            {results.categories.length === 0 && (
+              <p className="text-gray-500 text-sm text-center py-4">Нет результатов</p>
+            )}
+            {results.categories.map(cat => (
+              <div key={cat.name}>
+                <p className="text-white font-bold text-sm mb-2">{cat.name}</p>
+                <div className="space-y-1.5">
+                  {cat.participants.map((p, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-xl px-3 py-2.5 flex items-center gap-3"
+                      style={{ background: idx === 0 && !p.bombed_out ? 'rgba(57,255,20,0.08)' : 'rgba(255,255,255,0.04)' }}
+                    >
+                      <span className="text-sm font-black w-6 text-center shrink-0" style={{ color: idx === 0 ? '#39ff14' : '#6b7280' }}>
+                        {p.bombed_out ? '—' : `#${p.place}`}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-semibold truncate">{p.name}</p>
+                        <p className="text-gray-500 text-[10px]">{p.bodyweight} кг</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {p.bombed_out
+                          ? <p className="text-red-400 text-xs font-semibold">Бомб-аут</p>
+                          : <>
+                            <p className="text-white font-black text-sm">{p.total} кг</p>
+                            {p.score !== null && (
+                              <p className="text-gray-500 text-[10px]">{results.tournament.formula_label}: {p.score}</p>
+                            )}
+                          </>
+                        }
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </BottomSheet>
+
       {/* ── Registration BottomSheet ──────────────────────────── */}
       <BottomSheet
         isOpen={selected !== null}
@@ -282,11 +356,12 @@ function TabContent({ children }: { children: React.ReactNode }) {
 }
 
 function TournamentCard({
-  t, index, onDetail, isAdmin, onDelete, deleting,
+  t, index, onDetail, onResults, isAdmin, onDelete, deleting,
 }: {
   t: ApiTournament
   index: number
   onDetail: () => void
+  onResults?: () => void
   isAdmin?: boolean
   onDelete?: () => void
   deleting?: boolean
@@ -325,6 +400,16 @@ function TournamentCard({
         >
           Подробнее <ChevronRight size={14} />
         </button>
+
+        {onResults && t.status === 'finished' && (
+          <button
+            onClick={onResults}
+            className="w-10 h-10 bg-neon-green/10 border border-neon-green/20 rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-transform"
+            title="Результаты"
+          >
+            <BarChart2 size={16} className="text-neon-green" />
+          </button>
+        )}
 
         {isAdmin && onDelete && t.status === 'finished' && (
           <button

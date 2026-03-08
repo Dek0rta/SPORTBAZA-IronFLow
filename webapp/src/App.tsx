@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useTelegram } from './hooks/useTelegram'
 import { BottomNav } from './components/BottomNav'
 import { Profile } from './screens/Profile'
 import { Leaderboard } from './screens/Leaderboard'
 import { Competitions } from './screens/Competitions'
+import { Notifications } from './screens/Notifications'
+import { api } from './services/api'
 import type { Tab } from './types'
 
-const TABS: Tab[] = ['profile', 'leaderboard', 'competitions']
+const TABS: Tab[] = ['profile', 'leaderboard', 'competitions', 'notifications']
 
 const variants = {
   enter: (dir: number) => ({ x: dir > 0 ? '100%' : '-100%', opacity: 0 }),
@@ -16,8 +18,9 @@ const variants = {
 }
 
 export default function App() {
-  const [tab, setTab]           = useState<Tab>('profile')
+  const [tab, setTab]             = useState<Tab>('profile')
   const [direction, setDirection] = useState(0)
+  const [unreadCount, setUnreadCount] = useState(0)
   const { tg } = useTelegram()
 
   useEffect(() => {
@@ -26,6 +29,17 @@ export default function App() {
     tg?.setBackgroundColor('#0f172a')
     tg?.enableClosingConfirmation()
   }, [tg])
+
+  // Load initial unread count
+  useEffect(() => {
+    api.notifications()
+      .then(ns => setUnreadCount(ns.filter(n => !n.read).length))
+      .catch(() => {})
+  }, [])
+
+  const handleUnreadChange = useCallback((count: number) => {
+    setUnreadCount(count)
+  }, [])
 
   const navigate = (next: Tab) => {
     setDirection(TABS.indexOf(next) - TABS.indexOf(tab))
@@ -46,13 +60,14 @@ export default function App() {
             transition={{ type: 'tween', ease: 'easeInOut', duration: 0.22 }}
             className="absolute inset-0"
           >
-            {tab === 'profile'      && <Profile />}
-            {tab === 'leaderboard'  && <Leaderboard />}
-            {tab === 'competitions' && <Competitions />}
+            {tab === 'profile'       && <Profile />}
+            {tab === 'leaderboard'   && <Leaderboard />}
+            {tab === 'competitions'  && <Competitions />}
+            {tab === 'notifications' && <Notifications onUnreadChange={handleUnreadChange} />}
           </motion.div>
         </AnimatePresence>
       </div>
-      <BottomNav active={tab} onChange={navigate} />
+      <BottomNav active={tab} onChange={navigate} unreadCount={unreadCount} />
     </div>
   )
 }

@@ -26,6 +26,15 @@ async function del(path: string): Promise<void> {
   if (!r.ok) throw new Error(`${r.status}`)
 }
 
+async function post<T>(path: string): Promise<T> {
+  const r = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'X-Telegram-Init-Data': initData() },
+  })
+  if (!r.ok) throw new Error(`${r.status}`)
+  return r.json()
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface Me {
@@ -48,7 +57,70 @@ export interface ApiTournament {
   formula: string
   formula_label: string
   created_at: string | null
+  tournament_date: string | null
   participants_count: number
+}
+
+export interface ResultEntry {
+  place: number | null
+  name: string
+  bodyweight: number
+  total: number | null
+  score: number | null
+  bombed_out: boolean
+  squat?: number | null
+  bench?: number | null
+  deadlift?: number | null
+}
+
+export interface ResultCategory {
+  name: string
+  gender: string
+  weight: string
+  participants: ResultEntry[]
+}
+
+export interface TournamentResults {
+  tournament: {
+    id: number
+    name: string
+    type: string
+    formula: string
+    formula_label: string
+    lift_types: string[]
+    date: string | null
+  }
+  categories: ResultCategory[]
+}
+
+export interface PublicProfile {
+  telegram_id: number
+  first_name: string
+  last_name: string | null
+  username: string | null
+  mmr: number
+  rank: string
+  tier: string
+  tournaments: number
+  wins: number
+  losses: number
+  achievements: Achievement[]
+  recent_tournaments: {
+    name: string
+    date: string | null
+    type: string
+    total: number | null
+    category: string | null
+  }[]
+}
+
+export interface AppNotification {
+  id: number
+  type: string   // confirmed | tournament_started | tournament_finished | record | announcement
+  title: string
+  body: string
+  read: boolean
+  created_at: string
 }
 
 export interface LeaderboardEntry {
@@ -102,10 +174,14 @@ export interface MyRegistration {
 // ── Requests ───────────────────────────────────────────────────────────────
 
 export const api = {
-  me:                ()     => get<Me>('/api/me'),
-  tournaments:       ()     => get<ApiTournament[]>('/api/tournaments'),
-  deleteTournament:  (id: number) => del(`/api/tournaments/${id}`),
-  leaderboard:       ()     => get<LeaderboardEntry[]>('/api/leaderboard'),
-  profile:           ()     => get<UserProfile>('/api/profile'),
-  myRegistrations:   ()     => get<MyRegistration[]>('/api/my-registrations'),
+  me:                    ()           => get<Me>('/api/me'),
+  tournaments:           ()           => get<ApiTournament[]>('/api/tournaments'),
+  deleteTournament:      (id: number) => del(`/api/tournaments/${id}`),
+  leaderboard:           ()           => get<LeaderboardEntry[]>('/api/leaderboard'),
+  profile:               ()           => get<UserProfile>('/api/profile'),
+  myRegistrations:       ()           => get<MyRegistration[]>('/api/my-registrations'),
+  tournamentResults:     (id: number) => get<TournamentResults>(`/api/tournaments/${id}/results`),
+  userProfile:           (tgId: number) => get<PublicProfile>(`/api/users/${tgId}/profile`),
+  notifications:         ()           => get<AppNotification[]>('/api/notifications'),
+  markNotificationsRead: ()           => post<{ ok: boolean }>('/api/notifications/read-all'),
 }

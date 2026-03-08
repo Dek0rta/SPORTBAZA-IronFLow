@@ -190,6 +190,9 @@ class User(Base):
     participants: Mapped[List["Participant"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    notifications: Mapped[List["Notification"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
     @property
     def display_name(self) -> str:
@@ -391,3 +394,18 @@ class PlatformRecord(Base):
     @property
     def gender_label(self) -> str:
         return "Мужчины" if self.gender == "M" else "Женщины"
+
+
+class Notification(Base):
+    """In-app notification for an athlete (shown in the web app)."""
+    __tablename__ = "notifications"
+
+    id:         Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id:    Mapped[int]           = mapped_column(ForeignKey("users.id"))
+    type:       Mapped[str]           = mapped_column(String(50))   # confirmed | tournament_started | tournament_finished | record | announcement
+    title:      Mapped[str]           = mapped_column(String(255))
+    body:       Mapped[str]           = mapped_column(String(1000))
+    read:       Mapped[bool]          = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime]      = mapped_column(DateTime, default=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="notifications")

@@ -18,7 +18,7 @@ from bot.models.models import ParticipantStatus, AgeCategory
 from bot.services import (
     list_tournaments, list_participants, get_participant, update_participant_status,
 )
-from bot.services.notification_service import notify_registration_confirmed
+from bot.services.notification_service import notify_registration_confirmed, create_db_notification
 
 logger = logging.getLogger(__name__)
 router = Router(name="admin_panel")
@@ -144,6 +144,11 @@ async def cq_confirm_participant(
 
     await update_participant_status(session, p.id, ParticipantStatus.CONFIRMED)
     await notify_registration_confirmed(callback.bot, p)
+    await create_db_notification(
+        session, p.user_id, "confirmed",
+        "Заявка подтверждена",
+        f"Ваша заявка на «{p.tournament.name}» подтверждена. Удачи! 💪",
+    )
 
     await callback.answer("✅ Участник подтверждён!")
     # Refresh view

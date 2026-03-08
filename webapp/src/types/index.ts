@@ -1,1 +1,1 @@
-export type Tab = 'profile' | 'leaderboard' | 'competitions'
+export type Tab = 'profile' | 'leaderboard' | 'competitions' | 'notifications'

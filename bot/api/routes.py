@@ -6,13 +6,16 @@ from __future__ import annotations
 
 import logging
 from aiohttp import web
-from sqlalchemy import select, func
+from collections import defaultdict
+
+from sqlalchemy import select, func, update as sql_update
 from sqlalchemy.orm import selectinload
 
 from bot.models.models import (
-    User, Tournament, Participant, PlatformRecord,
+    User, Tournament, Participant, PlatformRecord, Notification, WeightCategory,
     TournamentStatus, TournamentType, ParticipantStatus,
 )
+from bot.services.formula_service import calculate_formula
 from bot.models.base import AsyncSessionFactory
 from bot.api.auth import parse_tg_user
 from bot.api import achievements as ach_module
@@ -29,7 +32,7 @@ async def cors_middleware(request: web.Request, handler):
     if request.method == "OPTIONS":
         return web.Response(status=204, headers={
             "Access-Control-Allow-Origin":  "*",
-            "Access-Control-Allow-Methods": "GET, DELETE, OPTIONS",
+            "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Init-Data",
         })
     try:
@@ -377,3 +380,260 @@ async def get_my_registrations(req: web.Request):
         "full_name":           p.full_name,
         "description":         p.tournament.description,
     } for p in parts])
+
+
+# ── GET /api/tournaments/{id}/results ────────────────────────────────────────
+
+@routes.get("/api/tournaments/{id}/results")
+async def get_tournament_results(req: web.Request):
+    tid = int(req.match_info["id"])
+
+    async with AsyncSessionFactory() as session:
+        t = await session.get(Tournament, tid)
+        if not t:
+            raise web.HTTPNotFound()
+
+        p_result = await session.execute(
+            select(Participant)
+            .where(
+                Participant.tournament_id == tid,
+                Participant.status != ParticipantStatus.WITHDRAWN,
+            )
+            .options(
+                selectinload(Participant.attempts),
+                selectinload(Participant.category),
+                selectinload(Participant.user),
+            )
+        )
+        participants = p_result.scalars().all()
+
+        cat_result = await session.execute(
+            select(WeightCategory)
+            .where(WeightCategory.tournament_id == tid)
+            .order_by(WeightCategory.gender, WeightCategory.name)
+        )
+        categories = cat_result.scalars().all()
+
+    lift_types = TournamentType.LIFTS.get(t.tournament_type, [])
+    formula    = t.scoring_formula
+
+    def _rank_val(p: Participant):
+        total = p.total(lift_types)
+        if total is None:
+            return (1, 0.0)
+        score = calculate_formula(formula, p.bodyweight or 0, p.gender or "M", total, t.tournament_type)
+        return (0, -(score if score is not None else total))
+
+    def _build_entry(p: Participant, place):
+        total   = p.total(lift_types)
+        bombed  = total is None
+        score   = None
+        if not bombed and total and p.bodyweight and p.gender:
+            score = calculate_formula(formula, p.bodyweight, p.gender, total, t.tournament_type)
+        entry = {
+            "place":      place if not bombed else None,
+            "name":       p.full_name,
+            "bodyweight": p.bodyweight,
+            "total":      total,
+            "score":      score,
+            "bombed_out": bombed,
+        }
+        for lt in lift_types:
+            entry[lt] = p.best_lift(lt)
+        return entry
+
+    by_cat: dict = defaultdict(list)
+    uncategorized = []
+    for p in participants:
+        (by_cat[p.category_id] if p.category_id else uncategorized).append(p)
+
+    result_categories = []
+    for cat in categories:
+        parts = sorted(by_cat.get(cat.id, []), key=_rank_val)
+        if not parts:
+            continue
+        place = 1
+        entries = []
+        for p in parts:
+            entry = _build_entry(p, place)
+            if not entry["bombed_out"]:
+                place += 1
+            entries.append(entry)
+        result_categories.append({
+            "name":         cat.display_name,
+            "gender":       cat.gender,
+            "weight":       cat.name,
+            "participants": entries,
+        })
+
+    if uncategorized:
+        parts = sorted(uncategorized, key=_rank_val)
+        place = 1
+        entries = []
+        for p in parts:
+            entry = _build_entry(p, place)
+            if not entry["bombed_out"]:
+                place += 1
+            entries.append(entry)
+        result_categories.append({"name": "Без категории", "gender": "", "weight": "", "participants": entries})
+
+    return web.json_response({
+        "tournament": {
+            "id":           t.id,
+            "name":         t.name,
+            "type":         t.tournament_type,
+            "formula":      formula,
+            "formula_label": t.formula_label,
+            "lift_types":   lift_types,
+            "date":         t.tournament_date,
+        },
+        "categories": result_categories,
+    })
+
+
+# ── GET /api/users/{telegram_id}/profile ─────────────────────────────────────
+
+@routes.get("/api/users/{telegram_id}/profile")
+async def get_user_public_profile(req: web.Request):
+    tg_id = int(req.match_info["telegram_id"])
+
+    async with AsyncSessionFactory() as session:
+        user_result = await session.execute(select(User).where(User.telegram_id == tg_id))
+        user = user_result.scalar_one_or_none()
+        if not user:
+            raise web.HTTPNotFound()
+
+        p_result = await session.execute(
+            select(Participant)
+            .join(Tournament)
+            .where(
+                Participant.user_id == user.id,
+                Tournament.status   == TournamentStatus.FINISHED,
+                Participant.status  != ParticipantStatus.WITHDRAWN,
+            )
+            .options(
+                selectinload(Participant.attempts),
+                selectinload(Participant.tournament),
+                selectinload(Participant.category),
+            )
+        )
+        parts = p_result.scalars().all()
+
+        rec_result = await session.execute(
+            select(PlatformRecord).where(
+                PlatformRecord.participant_id.in_([p.id for p in parts])
+            ) if parts else select(PlatformRecord).where(False)
+        )
+        recs = rec_result.scalars().all()
+
+        all_parts_result = await session.execute(
+            select(Participant)
+            .join(Tournament)
+            .where(
+                Participant.user_id == user.id,
+                Participant.status  != ParticipantStatus.WITHDRAWN,
+            )
+            .options(selectinload(Participant.attempts), selectinload(Participant.tournament))
+        )
+        all_parts = all_parts_result.scalars().all()
+
+        wd_result = await session.execute(
+            select(func.count(Participant.id)).where(
+                Participant.user_id == user.id,
+                Participant.status  == ParticipantStatus.WITHDRAWN,
+            )
+        )
+        wd_count = wd_result.scalar() or 0
+
+    mmr, rank, tier = _mmr_tier(parts, recs)
+    wins = sum(
+        1 for p in parts
+        if p.total(TournamentType.LIFTS.get(p.tournament.tournament_type, [])) is not None
+    )
+
+    recent = []
+    for p in parts[:5]:
+        lt    = TournamentType.LIFTS.get(p.tournament.tournament_type, [])
+        total = p.total(lt)
+        recent.append({
+            "name":     p.tournament.name,
+            "date":     p.tournament.tournament_date,
+            "type":     p.tournament.type_label,
+            "total":    total,
+            "category": p.category.display_name if p.category else None,
+        })
+
+    achievements = ach_module.compute(all_parts, recs, wd_count)
+
+    return web.json_response({
+        "telegram_id": user.telegram_id,
+        "first_name":  user.first_name,
+        "last_name":   user.last_name,
+        "username":    user.username,
+        "mmr":         mmr,
+        "rank":        rank,
+        "tier":        tier,
+        "tournaments": len(parts),
+        "wins":        wins,
+        "losses":      len(parts) - wins,
+        "achievements": achievements,
+        "recent_tournaments": recent,
+    })
+
+
+# ── GET /api/notifications ────────────────────────────────────────────────────
+
+@routes.get("/api/notifications")
+async def get_notifications(req: web.Request):
+    user_data = parse_tg_user(_init_data(req))
+    if not user_data:
+        return web.json_response([])
+
+    tg_id = user_data["id"]
+    async with AsyncSessionFactory() as session:
+        user_result = await session.execute(select(User).where(User.telegram_id == tg_id))
+        user = user_result.scalar_one_or_none()
+        if not user:
+            return web.json_response([])
+
+        n_result = await session.execute(
+            select(Notification)
+            .where(Notification.user_id == user.id)
+            .order_by(Notification.created_at.desc())
+            .limit(50)
+        )
+        notifications = n_result.scalars().all()
+
+    return web.json_response([{
+        "id":         n.id,
+        "type":       n.type,
+        "title":      n.title,
+        "body":       n.body,
+        "read":       n.read,
+        "created_at": n.created_at.isoformat(),
+    } for n in notifications])
+
+
+# ── POST /api/notifications/read-all ─────────────────────────────────────────
+
+@routes.post("/api/notifications/read-all")
+async def mark_notifications_read(req: web.Request):
+    user_data = parse_tg_user(_init_data(req))
+    if not user_data:
+        raise web.HTTPUnauthorized()
+
+    tg_id = user_data["id"]
+    async with AsyncSessionFactory() as session:
+        user_result = await session.execute(select(User).where(User.telegram_id == tg_id))
+        user = user_result.scalar_one_or_none()
+        if not user:
+            raise web.HTTPNotFound()
+
+        await session.execute(
+            sql_update(Notification)
+            .where(Notification.user_id == user.id, Notification.read == False)  # noqa: E712
+            .values(read=True)
+        )
+        await session.commit()
+
+    return web.json_response({"ok": True})

@@ -12,6 +12,7 @@ from typing import Optional
 from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.models.models import Attempt, Participant, AttemptResult, TournamentType
 
@@ -124,6 +125,18 @@ async def notify_announcement(
         except (TelegramForbiddenError, TelegramBadRequest):
             pass
     return count
+
+
+async def create_db_notification(
+    session: AsyncSession,
+    user_id: int,
+    notif_type: str,
+    title: str,
+    body: str,
+) -> None:
+    """Persist an in-app notification to the database (shown in the web app)."""
+    from bot.models.models import Notification
+    session.add(Notification(user_id=user_id, type=notif_type, title=title, body=body))
 
 
 async def notify_tournament_started(

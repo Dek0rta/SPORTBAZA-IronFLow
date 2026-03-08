@@ -17,7 +17,7 @@ from bot.keyboards import (
     admin_main_menu, PREDEFINED_CATEGORIES,
 )
 from bot.middlewares import IsAdmin
-from bot.models.models import TournamentType, TournamentStatus
+from bot.models.models import TournamentType, TournamentStatus, ParticipantStatus
 from bot.services import (
     create_tournament, get_tournament, list_tournaments,
     set_tournament_status, delete_tournament, create_categories,
@@ -489,8 +489,14 @@ async def cq_start_tournament(
     for i, p in enumerate(participants, start=1):
         p.lot_number = i
 
-    from bot.services.notification_service import notify_tournament_started
+    from bot.services.notification_service import notify_tournament_started, create_db_notification
     await notify_tournament_started(callback.bot, participants, t.name)
+    for p in participants:
+        await create_db_notification(
+            session, p.user_id, "tournament_started",
+            "Турнир начался!",
+            f"«{t.name}» стартовал. Результаты подходов придут в реальном времени. 🏅",
+        )
 
     await callback.message.edit_text(
         f"🚀 *Соревнование началось!*\n\n"
@@ -527,6 +533,16 @@ async def cq_finish_tournament(
 ) -> None:
     await set_tournament_status(session, callback_data.tid, TournamentStatus.FINISHED)
     t = await get_tournament(session, callback_data.tid)
+
+    from bot.services.notification_service import create_db_notification
+    for p in (t.participants if t else []):
+        if p.status != ParticipantStatus.WITHDRAWN:
+            await create_db_notification(
+                session, p.user_id, "tournament_finished",
+                "Турнир завершён",
+                f"«{t.name}» завершён. Результаты зафиксированы. 🏆",
+            )
+
     await callback.message.edit_text(
         f"🏆 *Турнир завершён!*\n\n"
         f"*{t.name}* — результаты зафиксированы.\n"
