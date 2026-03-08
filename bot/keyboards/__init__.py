@@ -17,6 +17,7 @@ from bot.keyboards.registration_kb import (
     tournament_list_kb,
     age_category_kb,
     gender_kb,
+    opening_weight_kb,
     cancel_registration_kb,
     confirm_registration_kb,
     my_registrations_kb,
@@ -52,8 +53,8 @@ __all__ = [
     # main menu
     "athlete_main_menu", "admin_main_menu", "back_to_main",
     # registration
-    "tournament_list_kb", "age_category_kb", "gender_kb", "cancel_registration_kb",
-    "confirm_registration_kb", "my_registrations_kb",
+    "tournament_list_kb", "age_category_kb", "gender_kb", "opening_weight_kb",
+    "cancel_registration_kb", "confirm_registration_kb", "my_registrations_kb",
     "participant_profile_kb", "withdraw_confirm_kb",
     # admin
     "tournament_list_admin_kb", "tournament_detail_admin_kb",
