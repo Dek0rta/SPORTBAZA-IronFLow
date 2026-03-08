@@ -71,12 +71,14 @@ async def create_tournament(
     tournament_type: str,
     created_by: int,          # telegram_id
     description: Optional[str] = None,
+    tournament_date: Optional[str] = None,
 ) -> Tournament:
     t = Tournament(
         name=name,
         tournament_type=tournament_type,
         created_by=created_by,
         description=description,
+        tournament_date=tournament_date,
     )
     session.add(t)
     await session.flush()

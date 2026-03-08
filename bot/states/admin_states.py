@@ -7,6 +7,7 @@ class AdminTournamentStates(StatesGroup):
     choose_type        = State()  # SBD / BP / DL / PP
     choose_categories  = State()  # Multi-select weight categories
     enter_description  = State()  # Optional tournament description
+    enter_date         = State()  # Optional tournament date (dd.mm.yyyy)
     confirm            = State()  # Review + save
 
 

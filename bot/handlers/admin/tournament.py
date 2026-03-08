@@ -13,7 +13,7 @@ from bot.keyboards import (
     AdminPanelCb, TournamentCb,
     tournament_list_admin_kb, tournament_detail_admin_kb,
     confirm_action_kb, category_setup_kb,
-    description_input_kb, announce_cancel_kb,
+    description_input_kb, date_input_kb, announce_cancel_kb,
     admin_main_menu, PREDEFINED_CATEGORIES,
 )
 from bot.middlewares import IsAdmin
@@ -86,9 +86,11 @@ async def cq_tournament_view(
     participants = [p for p in t.participants if p.status != "withdrawn"]
     cats = t.categories
 
+    date_line = f"📅 Дата: *{t.tournament_date}*\n" if t.tournament_date else ""
     text = (
         f"{t.status_emoji} *{t.name}*\n\n"
         f"📋 Тип: {t.type_label}\n"
+        f"{date_line}"
         f"📌 Статус: {_status_label(t.status)}\n"
         f"👥 Участников: `{len(participants)}`\n"
         f"📂 Категорий: `{len(cats)}`\n"
@@ -255,28 +257,34 @@ async def cq_categories_confirmed(
 
 # ── Description step ─────────────────────────────────────────────────────────
 
+def _date_prompt_text(desc: str | None) -> str:
+    desc_line = f"📝 _{desc}_\n\n" if desc else ""
+    return (
+        f"{desc_line}"
+        f"📅 *Дата проведения*\n\n"
+        f"Введите дату в формате *ДД.ММ.ГГГГ* (например: `15.06.2026`):\n\n"
+        f"_Или нажмите «Пропустить»._"
+    )
+
+
 @router.callback_query(F.data == "trn_desc_skip", AdminTournamentStates.enter_description)
 async def cq_skip_description(
     callback: CallbackQuery,
-    session: AsyncSession,
     state: FSMContext,
 ) -> None:
     await callback.answer()
-    t, cat_tuples = await _create_tournament_from_state(
-        session, state, callback.from_user.id, description=None
-    )
-    cat_list = ", ".join(f"{'М' if g=='M' else 'Ж'}{n}" for g, n in sorted(cat_tuples))
+    await state.update_data(description=None)
+    await state.set_state(AdminTournamentStates.enter_date)
     await callback.message.edit_text(
-        _tournament_created_text(t, len(cat_tuples), cat_list, description=None),
+        _date_prompt_text(None),
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=tournament_detail_admin_kb(t),
+        reply_markup=date_input_kb(),
     )
 
 
 @router.message(AdminTournamentStates.enter_description)
 async def msg_tournament_description(
     message: Message,
-    session: AsyncSession,
     state: FSMContext,
 ) -> None:
     description = message.text.strip() if message.text else ""
@@ -286,18 +294,72 @@ async def msg_tournament_description(
             reply_markup=description_input_kb(),
         )
         return
+    await state.update_data(description=description)
+    await state.set_state(AdminTournamentStates.enter_date)
+    await message.answer(
+        _date_prompt_text(description),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=date_input_kb(),
+    )
+
+
+# ── Date step ─────────────────────────────────────────────────────────────────
+
+import re as _re
+_DATE_RE = _re.compile(r"^\d{2}\.\d{2}\.\d{4}$")
+
+
+@router.callback_query(F.data == "trn_date_skip", AdminTournamentStates.enter_date)
+async def cq_skip_date(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext,
+) -> None:
+    await callback.answer()
+    data = await state.get_data()
     t, cat_tuples = await _create_tournament_from_state(
-        session, state, message.from_user.id, description=description
+        session, state, callback.from_user.id,
+        description=data.get("description"), tournament_date=None,
     )
     cat_list = ", ".join(f"{'М' if g=='M' else 'Ж'}{n}" for g, n in sorted(cat_tuples))
-    await message.answer(
-        _tournament_created_text(t, len(cat_tuples), cat_list, description=description),
+    await callback.message.edit_text(
+        _tournament_created_text(t, len(cat_tuples), cat_list),
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=tournament_detail_admin_kb(t),
     )
 
 
-async def _create_tournament_from_state(session, state, admin_tg_id: int, description):
+@router.message(AdminTournamentStates.enter_date)
+async def msg_tournament_date(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext,
+) -> None:
+    raw = message.text.strip() if message.text else ""
+    if not _DATE_RE.match(raw):
+        await message.answer(
+            "⚠️ Неверный формат. Введите дату как *ДД.ММ.ГГГГ*, например `15.06.2026`:",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=date_input_kb(),
+        )
+        return
+    data = await state.get_data()
+    t, cat_tuples = await _create_tournament_from_state(
+        session, state, message.from_user.id,
+        description=data.get("description"), tournament_date=raw,
+    )
+    cat_list = ", ".join(f"{'М' if g=='M' else 'Ж'}{n}" for g, n in sorted(cat_tuples))
+    await message.answer(
+        _tournament_created_text(t, len(cat_tuples), cat_list),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=tournament_detail_admin_kb(t),
+    )
+
+
+async def _create_tournament_from_state(
+    session, state, admin_tg_id: int,
+    description, tournament_date=None,
+):
     data     = await state.get_data()
     selected = set(data.get("selected_categories", []))
     t = await create_tournament(
@@ -306,6 +368,7 @@ async def _create_tournament_from_state(session, state, admin_tg_id: int, descri
         tournament_type=data["tournament_type"],
         created_by=admin_tg_id,
         description=description,
+        tournament_date=tournament_date,
     )
     cat_tuples = [(key.split(":", 1)[0], key.split(":", 1)[1]) for key in selected]
     await create_categories(session, t.id, cat_tuples)
@@ -313,12 +376,14 @@ async def _create_tournament_from_state(session, state, admin_tg_id: int, descri
     return t, cat_tuples
 
 
-def _tournament_created_text(t, cat_count: int, cat_list: str, description) -> str:
-    desc_line = f"📝 _{description}_\n\n" if description else ""
+def _tournament_created_text(t, cat_count: int, cat_list: str) -> str:
+    desc_line = f"📝 _{t.description}_\n" if t.description else ""
+    date_line = f"📅 Дата: *{t.tournament_date}*\n" if t.tournament_date else ""
     return (
         f"✅ *Турнир создан!*\n\n"
         f"🏆 {t.name}\n"
         f"📋 Тип: {t.type_label}\n"
+        f"{date_line}"
         f"📂 Категорий: {cat_count}\n"
         f"   _{cat_list}_\n\n"
         f"{desc_line}"

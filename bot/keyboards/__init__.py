@@ -29,7 +29,7 @@ from bot.keyboards.admin_kb import (
     tournament_detail_admin_kb,
     confirm_action_kb,
     category_setup_kb,
-    description_input_kb,
+    description_input_kb, date_input_kb,
     announce_cancel_kb,
     participant_list_kb,
     participant_detail_admin_kb,
@@ -59,7 +59,7 @@ __all__ = [
     # admin
     "tournament_list_admin_kb", "tournament_detail_admin_kb",
     "confirm_action_kb", "category_setup_kb",
-    "description_input_kb", "announce_cancel_kb",
+    "description_input_kb", "date_input_kb", "announce_cancel_kb",
     "participant_list_kb", "participant_detail_admin_kb",
     "scoring_participant_list_kb", "formula_select_kb", "PREDEFINED_CATEGORIES",
     # scoring

@@ -171,6 +171,14 @@ def description_input_kb() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def date_input_kb() -> InlineKeyboardMarkup:
+    """Keyboard shown while admin enters tournament date — allows skipping."""
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="➡️ Пропустить", callback_data="trn_date_skip"))
+    builder.row(InlineKeyboardButton(text="❌ Отмена", callback_data=TournamentCb(action="list").pack()))
+    return builder.as_markup()
+
+
 def announce_cancel_kb(tid: int) -> InlineKeyboardMarkup:
     """Cancel button for the announcement text-input step."""
     builder = InlineKeyboardBuilder()

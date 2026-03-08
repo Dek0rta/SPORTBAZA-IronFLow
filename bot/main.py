@@ -58,6 +58,7 @@ async def create_tables() -> None:
             "ALTER TABLE participants ADD COLUMN checked_in BOOLEAN DEFAULT FALSE",
             # v2.1
             "ALTER TABLE participants ADD COLUMN opening_weight FLOAT",
+            "ALTER TABLE tournaments ADD COLUMN tournament_date VARCHAR(20)",
         ]
         for sql in _migrations:
             try:

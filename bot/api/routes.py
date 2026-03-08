@@ -145,6 +145,7 @@ async def get_tournaments(req: web.Request):
         "formula":           t.scoring_formula,
         "formula_label":     t.formula_label,
         "created_at":        t.created_at.isoformat() if t.created_at else None,
+        "tournament_date":   t.tournament_date,
         "participants_count": counts.get(t.id, 0),
     } for t in tournaments])
 

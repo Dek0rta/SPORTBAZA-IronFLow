@@ -209,8 +209,9 @@ class Tournament(Base):
     status:          Mapped[str]           = mapped_column(String(30), default=TournamentStatus.DRAFT)
     created_by:      Mapped[int]           = mapped_column(BigInteger)   # telegram_id
     created_at:      Mapped[datetime]      = mapped_column(DateTime, default=func.now())
-    description:     Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
-    scoring_formula: Mapped[str]           = mapped_column(String(20), default=FormulaType.TOTAL)
+    description:      Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    tournament_date:  Mapped[Optional[str]] = mapped_column(String(20),   nullable=True)  # dd.mm.yyyy
+    scoring_formula:  Mapped[str]           = mapped_column(String(20), default=FormulaType.TOTAL)
 
     categories:   Mapped[List["WeightCategory"]] = relationship(
         back_populates="tournament", cascade="all, delete-orphan"
