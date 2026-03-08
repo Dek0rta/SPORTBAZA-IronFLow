@@ -56,6 +56,8 @@ async def create_tables() -> None:
             "ALTER TABLE tournaments ADD COLUMN scoring_formula VARCHAR(20) DEFAULT 'total'",
             "ALTER TABLE participants ADD COLUMN qr_token VARCHAR(36)",
             "ALTER TABLE participants ADD COLUMN checked_in BOOLEAN DEFAULT FALSE",
+            # v2.1
+            "ALTER TABLE participants ADD COLUMN opening_weight FLOAT",
         ]
         for sql in _migrations:
             try:
