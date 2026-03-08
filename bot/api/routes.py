@@ -255,6 +255,7 @@ async def get_profile(req: web.Request):
                 "achievements": ach_module.compute([], [], 0),
             })
 
+        # Finished participations — used for MMR, wins/losses, records
         p_result = await session.execute(
             select(Participant)
             .join(Tournament)
@@ -269,6 +270,21 @@ async def get_profile(req: web.Request):
             )
         )
         parts = p_result.scalars().all()
+
+        # All non-withdrawn participations — needed for first_reg, punctual, etc.
+        all_parts_result = await session.execute(
+            select(Participant)
+            .join(Tournament)
+            .where(
+                Participant.user_id == user.id,
+                Participant.status  != ParticipantStatus.WITHDRAWN,
+            )
+            .options(
+                selectinload(Participant.attempts),
+                selectinload(Participant.tournament),
+            )
+        )
+        all_parts = all_parts_result.scalars().all()
 
         rec_result = await session.execute(
             select(PlatformRecord).where(
@@ -304,7 +320,7 @@ async def get_profile(req: web.Request):
             "wins":         wins,
             "losses":       losses,
             "tournaments":  len(parts),
-            "achievements": ach_module.compute(parts, recs, wd_count),
+            "achievements": ach_module.compute(all_parts, recs, wd_count),
         })
 
 

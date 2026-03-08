@@ -58,10 +58,11 @@ def compute(
     achieved: set[str] = set()
 
     # ── Participation counts ──────────────────────────────────────────────────
+    # "completed" = finished tournament with at least one successful lift
     completed = [
         p for p in participations
-        if p.total(p.tournament.lift_types) is not None
-        or any(a.result == "good" for a in p.attempts)
+        if p.tournament.status == "finished"
+        and any(a.result == "good" for a in p.attempts)
     ]
 
     if participations:
