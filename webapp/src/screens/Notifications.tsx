@@ -62,7 +62,7 @@ export function Notifications({ onUnreadChange }: Props) {
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
       <div className="shrink-0 px-4 pt-6 pb-3 flex items-center justify-between">
-        <h1 className="text-white text-2xl font-bold">Уведомления</h1>
+        <h1 className="gradient-text-blue text-2xl font-bold">Уведомления</h1>
         {unreadCount > 0 && (
           <button
             onClick={markAllRead}
@@ -95,25 +95,33 @@ export function Notifications({ onUnreadChange }: Props) {
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  className="rounded-2xl p-4 flex gap-3 border transition-all"
+                  className="rounded-2xl border transition-all relative overflow-hidden"
                   style={{
-                    background: n.read ? 'rgba(255,255,255,0.025)' : 'rgba(255,255,255,0.055)',
-                    borderColor: n.read ? 'rgba(255,255,255,0.06)' : `${cfg.color}33`,
+                    background: n.read ? 'rgba(255,255,255,0.025)' : `${cfg.color}10`,
+                    borderColor: n.read ? 'rgba(255,255,255,0.06)' : `${cfg.color}48`,
+                    boxShadow: n.read ? 'none' : `0 0 18px ${cfg.color}14`,
                   }}
                 >
-                  <span className="text-2xl shrink-0 mt-0.5">{cfg.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className="text-white font-semibold text-sm">{n.title}</p>
-                      {!n.read && (
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ background: cfg.color }}
-                        />
-                      )}
+                  {/* Left accent stripe */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-1 rounded-l-full"
+                    style={{ background: n.read ? 'rgba(255,255,255,0.06)' : cfg.color }}
+                  />
+                  <div className="p-4 pl-5 flex gap-3">
+                    <span className="text-2xl shrink-0 mt-0.5">{cfg.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <p className="text-white font-semibold text-sm">{n.title}</p>
+                        {!n.read && (
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ background: cfg.color, boxShadow: `0 0 6px ${cfg.color}` }}
+                          />
+                        )}
+                      </div>
+                      <p className="text-gray-400 text-xs leading-relaxed">{n.body}</p>
+                      <p className="text-gray-600 text-[10px] mt-1.5">{relativeTime(n.created_at)}</p>
                     </div>
-                    <p className="text-gray-400 text-xs leading-relaxed">{n.body}</p>
-                    <p className="text-gray-600 text-[10px] mt-1.5">{relativeTime(n.created_at)}</p>
                   </div>
                 </motion.div>
               )

@@ -17,11 +17,45 @@
     touch-action: pan-y;
     background-color: #0f172a;
   }
+  /* Hide scrollbars on mobile */
+  ::-webkit-scrollbar { display: none; }
+  * { scrollbar-width: none; }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-white/[0.05] backdrop-blur-md border border-white/10 rounded-2xl p-4;
+    @apply bg-white/[0.06] backdrop-blur-md border border-white/[0.1] rounded-2xl p-4;
+  }
+  /* Per-screen gradient text variants */
+  .gradient-text-green {
+    background: linear-gradient(135deg, #39ff14 0%, #22d3ee 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .gradient-text-gold {
+    background: linear-gradient(135deg, #b45309 0%, #fbbf24 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .gradient-text-orange {
+    background: linear-gradient(135deg, #ea580c 0%, #fb923c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .gradient-text-purple {
+    background: linear-gradient(135deg, #7c3aed 0%, #c084fc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .gradient-text-blue {
+    background: linear-gradient(135deg, #1d4ed8 0%, #60a5fa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
 
@@ -29,4 +63,44 @@
   .pb-safe {
     padding-bottom: max(env(safe-area-inset-bottom), 8px);
   }
+}
+
+/* ── Pulsing "LIVE" dot for active tournaments ────────────────────────────── */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+  50%       { opacity: 0.7; transform: scale(0.85); box-shadow: 0 0 0 5px rgba(239,68,68,0); }
+}
+.live-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+/* ── Floating blob animations ─────────────────────────────────────────────── */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-22px) scale(1.06); }
+}
+@keyframes float-slow-r {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(18px) scale(0.95); }
+}
+.animate-float-slow   { animation: float-slow    9s ease-in-out infinite; }
+.animate-float-slow-r { animation: float-slow-r 11s ease-in-out infinite; }
+.animate-float-slow-d { animation: float-slow    7s ease-in-out infinite reverse; }
+
+/* ── CTA button glow pulse ────────────────────────────────────────────────── */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 24px rgba(57,255,20,0.42), 0 0 50px rgba(57,255,20,0.14); }
+  50%       { box-shadow: 0 0 44px rgba(57,255,20,0.68), 0 0 90px rgba(57,255,20,0.28); }
+}
+.glow-pulse { animation: glow-pulse 2.6s ease-in-out infinite; }
+
+/* ── Shimmer gradient for skeleton/loading ────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
 }

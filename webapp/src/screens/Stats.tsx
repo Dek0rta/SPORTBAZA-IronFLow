@@ -70,7 +70,7 @@ export function Stats() {
   return (
     <div className="h-full overflow-y-auto overscroll-contain">
       <div className="px-4 pt-6 pb-8 space-y-5">
-        <h1 className="text-white text-2xl font-bold">Статистика</h1>
+        <h1 className="gradient-text-purple text-2xl font-bold">Статистика</h1>
 
         {!hasData && (
           <div className="glass-card text-center py-6 text-gray-500 text-sm">
@@ -88,7 +88,7 @@ export function Stats() {
               className="py-3 rounded-xl text-xs font-bold border transition-all"
               style={
                 active === id
-                  ? { backgroundColor: color, color: '#000', borderColor: 'transparent' }
+                  ? { background: color, color: '#000', borderColor: 'transparent', boxShadow: `0 0 20px ${color}60, 0 0 40px ${color}22` }
                   : { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#9ca3af' }
               }
             >
@@ -174,7 +174,14 @@ export function Stats() {
 
 function StatCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
-    <div className="glass-card py-3 text-center">
+    <div
+      className="glass-card py-3 text-center"
+      style={accent ? {
+        borderColor: `${accent}35`,
+        background: `${accent}0a`,
+        boxShadow: `0 0 16px ${accent}18`,
+      } : {}}
+    >
       <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-1">{label}</p>
       <p className="font-black text-base" style={{ color: accent ?? '#fff' }}>{value}</p>
     </div>
