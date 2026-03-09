@@ -4,7 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --prefer-offline
+RUN npm install --fetch-retries 5 --fetch-retry-mintimeout 10000 --fetch-retry-maxtimeout 60000
 
 COPY . .
 
