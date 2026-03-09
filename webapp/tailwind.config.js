@@ -4,6 +4,13 @@ export default {
   theme: {
     extend: {
       colors: {
+        /* ── LYFESTYLE palette ─────────────── */
+        'acid':    '#c8ff00',   // acid yellow-green (primary CTA)
+        'magenta': '#ff0075',   // hot pink (leaderboard)
+        'voltage': '#ff4d00',   // electric orange-red (competitions)
+        'uv':      '#9f00ff',   // deep ultraviolet (stats)
+        'ice':     '#00f0e0',   // electric cyan (notifications)
+        /* ── Legacy / kept for compatibility ── */
         'neon-green':  '#39ff14',
         'neon-purple': '#a855f7',
         'neon-pink':   '#ec4899',

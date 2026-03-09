@@ -33,8 +33,8 @@ export function Dashboard({ onStartWorkout }: Props) {
         {/* Header */}
         <motion.div variants={item} className="flex items-center justify-between">
           <div>
-            <p className="text-gray-400 text-sm">Привет 👋</p>
-            <h1 className="gradient-text-green text-2xl font-bold mt-0.5">
+            <p className="text-gray-600 text-xs uppercase tracking-widest">Привет 👋</p>
+            <h1 className="gradient-text-green text-3xl font-black uppercase tracking-tight mt-0.5">
               {user.first_name}
             </h1>
           </div>
@@ -114,7 +114,8 @@ export function Dashboard({ onStartWorkout }: Props) {
               haptic.impact('medium')
               onStartWorkout()
             }}
-            className="w-full h-16 bg-neon-green text-black rounded-2xl font-black text-lg flex items-center justify-center gap-3 glow-pulse active:scale-95 transition-transform"
+            className="w-full h-16 text-black rounded-2xl font-black text-lg uppercase tracking-wide flex items-center justify-center gap-3 glow-pulse active:scale-95 transition-transform"
+            style={{ background: '#c8ff00' }}
           >
             <Play size={24} fill="black" />
             Начать тренировку

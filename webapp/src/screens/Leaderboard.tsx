@@ -71,18 +71,18 @@ export function Leaderboard() {
 
       {/* Header */}
       <div className="shrink-0 px-4 pt-6 pb-3">
-        <h1 className="gradient-text-gold text-2xl font-bold mb-4">Ладдер</h1>
+        <h1 className="gradient-text-gold text-3xl font-black uppercase tracking-tight mb-4">Ладдер</h1>
         <div className="grid grid-cols-2 gap-1 rounded-2xl p-1" style={{ background: 'rgba(255,255,255,0.05)' }}>
           {(['global', 'league'] as const).map(id => (
             <button
               key={id}
               onClick={() => { haptic.impact('light'); setTab(id) }}
-              className={`py-2.5 rounded-xl text-sm font-bold transition-all ${
-                tab === id ? 'text-black' : 'text-gray-500'
+              className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                tab === id ? 'text-black' : 'text-gray-600'
               }`}
               style={tab === id ? {
-                background: 'linear-gradient(135deg,#b45309,#fbbf24)',
-                boxShadow: '0 0 18px rgba(251,191,36,0.35)',
+                background: 'linear-gradient(135deg,#ff0075,#9f00ff)',
+                boxShadow: '0 0 22px rgba(255,0,117,0.45)',
               } : {}}
             >
               {id === 'global' ? '🌍 Глобальный' : '⚔️ Моя лига'}

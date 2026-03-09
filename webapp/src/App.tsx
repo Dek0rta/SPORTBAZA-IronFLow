@@ -25,8 +25,8 @@ export default function App() {
 
   useEffect(() => {
     tg?.expand()
-    tg?.setHeaderColor('#0f172a')
-    tg?.setBackgroundColor('#0f172a')
+    tg?.setHeaderColor('#070709')
+    tg?.setBackgroundColor('#070709')
     tg?.enableClosingConfirmation()
   }, [tg])
 
@@ -44,33 +44,44 @@ export default function App() {
   }
 
   return (
-    <div className="bg-slate-950 h-screen flex flex-col overflow-hidden font-sans relative">
-
-      {/* Atmospheric depth blobs — fixed behind all content */}
+    <div
+      className="h-screen flex flex-col overflow-hidden font-sans relative"
+      style={{ background: '#070709' }}
+    >
+      {/* ── LYFESTYLE neon glow blobs ─────────────────────────────────────── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none" style={{ zIndex: 0 }}>
+        {/* UV / purple — top center */}
         <div className="animate-float-slow" style={{
-          position: 'absolute', top: '-8%', left: '22%',
-          width: '500px', height: '500px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(168,85,247,0.13) 0%, transparent 65%)',
+          position: 'absolute', top: '-12%', left: '18%',
+          width: '520px', height: '520px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(159,0,255,0.18) 0%, transparent 65%)',
         }} />
+        {/* Magenta — right */}
         <div className="animate-float-slow-r" style={{
-          position: 'absolute', bottom: '12%', right: '-18%',
-          width: '400px', height: '400px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 65%)',
+          position: 'absolute', bottom: '10%', right: '-20%',
+          width: '440px', height: '440px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,0,117,0.15) 0%, transparent 65%)',
         }} />
+        {/* Acid / yellow-green — left */}
         <div className="animate-float-slow-d" style={{
-          position: 'absolute', top: '48%', left: '-10%',
-          width: '280px', height: '280px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(57,255,20,0.07) 0%, transparent 65%)',
+          position: 'absolute', top: '42%', left: '-14%',
+          width: '300px', height: '300px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(200,255,0,0.1) 0%, transparent 65%)',
         }} />
+        {/* Voltage / orange — bottom */}
         <div className="animate-float-slow-r" style={{
-          animationDelay: '-4s',
-          position: 'absolute', bottom: '-8%', left: '45%',
-          width: '340px', height: '340px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(249,115,22,0.07) 0%, transparent 65%)',
+          animationDelay: '-5s',
+          position: 'absolute', bottom: '-10%', left: '48%',
+          width: '360px', height: '360px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,77,0,0.1) 0%, transparent 65%)',
         }} />
       </div>
 
+      {/* ── Grain + scanlines overlays ──────────────────────────────────── */}
+      <div className="grain-layer" />
+      <div className="scanlines-layer" />
+
+      {/* ── Screens ─────────────────────────────────────────────────────── */}
       <div className="flex-1 relative overflow-hidden" style={{ zIndex: 1 }}>
         <AnimatePresence custom={direction} mode="wait">
           <motion.div
@@ -91,7 +102,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      <div style={{ zIndex: 1 }}>
+      <div style={{ zIndex: 201 }}>
         <BottomNav active={tab} onChange={navigate} unreadCount={unreadCount} />
       </div>
     </div>

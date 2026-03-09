@@ -62,11 +62,12 @@ export function Notifications({ onUnreadChange }: Props) {
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
       <div className="shrink-0 px-4 pt-6 pb-3 flex items-center justify-between">
-        <h1 className="gradient-text-blue text-2xl font-bold">Уведомления</h1>
+        <h1 className="gradient-text-blue text-3xl font-black uppercase tracking-tight">Уведомления</h1>
         {unreadCount > 0 && (
           <button
             onClick={markAllRead}
-            className="flex items-center gap-1.5 text-xs text-neon-green font-semibold active:opacity-70"
+            className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest active:opacity-70"
+            style={{ color: '#00f0e0' }}
           >
             <CheckCheck size={14} />
             Прочитать все

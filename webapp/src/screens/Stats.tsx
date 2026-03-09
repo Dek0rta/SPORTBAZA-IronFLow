@@ -70,7 +70,7 @@ export function Stats() {
   return (
     <div className="h-full overflow-y-auto overscroll-contain">
       <div className="px-4 pt-6 pb-8 space-y-5">
-        <h1 className="gradient-text-purple text-2xl font-bold">Статистика</h1>
+        <h1 className="gradient-text-purple text-3xl font-black uppercase tracking-tight">Статистика</h1>
 
         {!hasData && (
           <div className="glass-card text-center py-6 text-gray-500 text-sm">

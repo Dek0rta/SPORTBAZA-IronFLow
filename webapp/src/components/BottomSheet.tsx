@@ -14,27 +14,34 @@ export function BottomSheet({ isOpen, onClose, title, children }: Props) {
       {isOpen && (
         <>
           <motion.div
-            className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
+            className="fixed inset-0 z-40"
+            style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
           <motion.div
-            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl border-t border-white/10 px-5 pt-4 pb-10"
-            style={{ background: 'linear-gradient(180deg, #111827 0%, #0c1220 100%)' }}
+            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl px-5 pt-4 pb-10"
+            style={{
+              background: 'linear-gradient(180deg, #0e0e12 0%, #070709 100%)',
+              borderTop: '1px solid rgba(255,255,255,0.09)',
+            }}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
           >
-            {/* Gradient drag handle */}
+            {/* LYFESTYLE rainbow drag handle */}
             <div
-              className="w-12 h-1.5 rounded-full mx-auto mb-4"
-              style={{ background: 'linear-gradient(90deg, rgba(168,85,247,0.7), rgba(57,255,20,0.6))' }}
+              className="w-14 h-1.5 rounded-full mx-auto mb-5"
+              style={{
+                background: 'linear-gradient(90deg, #9f00ff, #ff0075, #ff4d00, #c8ff00)',
+                boxShadow:  '0 0 12px rgba(200,255,0,0.3)',
+              }}
             />
             {title && (
-              <h3 className="text-white font-semibold text-lg mb-4">{title}</h3>
+              <h3 className="text-white font-black text-lg mb-4 uppercase tracking-wider">{title}</h3>
             )}
             {children}
           </motion.div>

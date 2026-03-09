@@ -285,14 +285,16 @@ export function Profile() {
                       value={bioInput}
                       onChange={e => setBioInput(e.target.value)}
                       placeholder="Девиз или описание..."
-                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm placeholder:text-gray-600 outline-none focus:border-neon-green/40"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm placeholder:text-gray-600 outline-none"
+                      style={{ borderColor: 'rgba(200,255,0,0.35)' }}
                     />
                     <button
                       onClick={saveBio}
                       disabled={savingBio}
-                      className="w-9 h-9 rounded-xl bg-neon-green/20 flex items-center justify-center active:scale-90 shrink-0"
+                      className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 shrink-0"
+                    style={{ background: 'rgba(200,255,0,0.15)' }}
                     >
-                      <Check size={15} className="text-neon-green" />
+                      <Check size={15} style={{ color: '#c8ff00' }} />
                     </button>
                     <button
                       onClick={() => setEditBio(false)}
@@ -382,7 +384,7 @@ export function Profile() {
                 Экипированные награды
               </p>
               {pinned.length > 0 && (
-                <span className="text-[10px] text-neon-green/60 font-medium">{pinned.length}/3 закреплено</span>
+                <span className="text-[10px] font-black uppercase tracking-wide" style={{ color: '#c8ff00' }}>{pinned.length}/3 pin</span>
               )}
             </div>
             {equippedAchs.length === 0 ? (
@@ -423,34 +425,34 @@ export function Profile() {
             <button
               onClick={() => { haptic.impact('light'); setAchOpen(true) }}
               className="flex items-center gap-3 px-4 py-4 rounded-3xl active:scale-[0.97] transition-transform"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,0,117,0.2)' }}
             >
               <div
                 className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                style={{ background: 'rgba(251,191,36,0.12)' }}
+                style={{ background: 'rgba(255,0,117,0.15)' }}
               >
-                <Trophy size={16} className="text-amber-400" />
+                <Trophy size={16} style={{ color: '#ff0075' }} />
               </div>
               <div className="text-left min-w-0">
-                <p className="text-white font-semibold text-xs">Награды</p>
-                <p className="text-gray-500 text-[10px]">{unlockedN} / {achievements.length}</p>
+                <p className="text-white font-semibold text-xs uppercase tracking-wide">Награды</p>
+                <p className="text-gray-600 text-[10px]">{unlockedN} / {achievements.length}</p>
               </div>
             </button>
 
             <button
               onClick={() => { haptic.impact('light'); setStatsOpen(true) }}
               className="flex items-center gap-3 px-4 py-4 rounded-3xl active:scale-[0.97] transition-transform"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(200,255,0,0.18)' }}
             >
               <div
                 className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                style={{ background: 'rgba(57,255,20,0.08)' }}
+                style={{ background: 'rgba(200,255,0,0.1)' }}
               >
-                <TrendingUp size={16} className="text-neon-green" />
+                <TrendingUp size={16} style={{ color: '#c8ff00' }} />
               </div>
               <div className="text-left">
-                <p className="text-white font-semibold text-xs">Статистика</p>
-                <p className="text-gray-500 text-[10px]">Графики прогресса</p>
+                <p className="text-white font-semibold text-xs uppercase tracking-wide">Статистика</p>
+                <p className="text-gray-600 text-[10px]">Прогресс</p>
               </div>
             </button>
           </motion.div>

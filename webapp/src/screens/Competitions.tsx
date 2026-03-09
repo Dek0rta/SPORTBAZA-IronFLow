@@ -92,7 +92,7 @@ export function Competitions() {
     <div className="h-full overflow-y-auto overscroll-contain">
       <div className="px-4 pt-6 pb-8">
 
-        <h1 className="gradient-text-orange text-2xl font-bold mb-5">Соревнования</h1>
+        <h1 className="gradient-text-orange text-3xl font-black uppercase tracking-tight mb-5">Соревнования</h1>
 
         {/* Tab switcher */}
         <div className="grid grid-cols-3 gap-1 rounded-2xl p-1 mb-5" style={{ background: 'rgba(255,255,255,0.05)' }}>
@@ -104,10 +104,13 @@ export function Competitions() {
             <button
               key={id}
               onClick={() => { haptic.impact('light'); setTab(id) }}
-              className={`py-2 rounded-xl text-xs font-bold transition-all ${
-                tab === id ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-500'
+              className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                tab === id ? 'text-black' : 'text-gray-600'
               }`}
-              style={tab === id ? { boxShadow: '0 0 16px rgba(249,115,22,0.35)' } : {}}
+              style={tab === id ? {
+                background: 'linear-gradient(135deg,#ff4d00,#ff0075)',
+                boxShadow: '0 0 20px rgba(255,77,0,0.45)',
+              } : {}}
             >
               {label}
             </button>
