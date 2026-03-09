@@ -4,12 +4,15 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm install --prefer-offline
 
 COPY . .
+
 ARG VITE_API_URL=https://sportbaza-ironflow-production.up.railway.app
 ENV VITE_API_URL=$VITE_API_URL
-RUN npx vite build
+
+# Форсируем чистую сборку без кеша Vite
+RUN npx vite build --force
 
 # ── Stage 2: Serve ────────────────────────────────────────────────────────────
 FROM nginx:1.27-alpine
