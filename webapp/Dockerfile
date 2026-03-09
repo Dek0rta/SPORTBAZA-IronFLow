@@ -12,7 +12,7 @@ ARG VITE_API_URL=https://sportbaza-ironflow-production.up.railway.app
 ENV VITE_API_URL=$VITE_API_URL
 
 # Форсируем чистую сборку без кеша Vite
-RUN npx vite build --force
+RUN npx vite build
 
 # ── Stage 2: Serve ────────────────────────────────────────────────────────────
 FROM nginx:1.27-alpine
